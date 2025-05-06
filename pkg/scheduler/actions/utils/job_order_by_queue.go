@@ -71,6 +71,7 @@ func (jobsOrder *JobsOrderByQueues) PopNextJob() *podgroup_info.PodGroupInfo {
 	job := jobsOrder.queueIdToQueueMetadata[queue.UID].jobsInQueue.Pop().(*podgroup_info.PodGroupInfo)
 	jobsOrder.updateQueuePriorityQueue(queue, department)
 	jobsOrder.updateDepartmentPriorityQueue(department)
+
 	log.InfraLogger.V(7).Infof("Popped job: %v", job.Name)
 	return job
 }
@@ -80,11 +81,11 @@ func (jobsOrder *JobsOrderByQueues) PushJob(job *podgroup_info.PodGroupInfo) {
 	department := jobsOrder.ssn.Queues[queue.ParentQueue]
 
 	if _, found := jobsOrder.departmentIdToDepartmentMetadata[department.UID]; !found {
-		jobsOrder.initializePriorityQueueForDepartment(department, jobsOrder.jobsOrderInitOptions.ReverseOrder)
+		jobsOrder.initializePriorityQueueForDepartment(department, jobsOrder.jobsOrderInitOptions.VictimQueue)
 		jobsOrder.activeDepartments.Push(department)
 	}
 	if _, found := jobsOrder.queueIdToQueueMetadata[job.Queue]; !found {
-		jobsOrder.initializePriorityQueue(job, jobsOrder.jobsOrderInitOptions.ReverseOrder)
+		jobsOrder.initializePriorityQueue(job, jobsOrder.jobsOrderInitOptions.VictimQueue)
 		jobsOrder.departmentIdToDepartmentMetadata[department.UID].queuesPriorityQueue.Push(queue)
 	}
 
@@ -243,10 +244,10 @@ func (jobsOrder *JobsOrderByQueues) buildFuncOrderBetweenQueuesWithJobs(jobsQueu
 		jobsQueueMetadataPerQueue[rQueue.UID].jobsInQueue.Push(rJobInfo)
 
 		if reverseOrder {
-			return !jobsOrder.ssn.QueueOrderFn(lQueue, rQueue, lJobInfo, rJobInfo)
+			return !jobsOrder.ssn.QueueOrderFn(lQueue, rQueue, lJobInfo, rJobInfo, nil, nil)
 		}
 
-		return jobsOrder.ssn.QueueOrderFn(lQueue, rQueue, lJobInfo, rJobInfo)
+		return jobsOrder.ssn.QueueOrderFn(lQueue, rQueue, lJobInfo, rJobInfo, nil, nil)
 	}
 }
 
@@ -274,9 +275,9 @@ func (jobsOrder *JobsOrderByQueues) buildFuncOrderBetweenDepartmentsWithJobs(rev
 		jobsOrder.departmentIdToDepartmentMetadata[rDepartment.UID].queuesPriorityQueue.Push(rBestQueue)
 
 		if reverseOrder {
-			return !jobsOrder.ssn.QueueOrderFn(lDepartment, rDepartment, lJobInfo, rJobInfo)
+			return !jobsOrder.ssn.QueueOrderFn(lDepartment, rDepartment, lJobInfo, rJobInfo, nil, nil)
 		}
 
-		return jobsOrder.ssn.QueueOrderFn(lDepartment, rDepartment, lJobInfo, rJobInfo)
+		return jobsOrder.ssn.QueueOrderFn(lDepartment, rDepartment, lJobInfo, rJobInfo, nil, nil)
 	}
 }
