@@ -97,6 +97,7 @@ func RunApp() error {
 	} else {
 		defer flushLogs()
 	}
+	setConfig(so)
 
 	config := clientconfig.GetConfigOrDie()
 	config.QPS = float32(so.QPS)
@@ -126,6 +127,11 @@ func setupLogging(so *options.ServerOption) error {
 	// The default glog flush interval is 30 seconds, which is frighteningly long.
 	go wait.Until(flushLogs, *logFlushFreq, wait.NeverStop)
 	return nil
+}
+
+func setConfig(so *options.ServerOption) {
+	config := conf.GetConfig()
+	config.ResourceReservationAppLabelValue = so.ResourceReservationAppLabel
 }
 
 func Run(opt *options.ServerOption, config *restclient.Config, mux *http.ServeMux) error {
