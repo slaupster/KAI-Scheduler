@@ -20,9 +20,9 @@ spec:
         - name: podgrouper
           image: "{{ .Values.global.registry }}/{{ .Values.podgrouper.image.name }}:{{ .Chart.Version }}"
           imagePullPolicy: {{ .Values.podgrouper.image.pullPolicy }}
-          {{- if .Values.podgrouper.args }}
+          {{- if .Values.podgrouper.additionalArgs }}
           args:
-            {{- toYaml .Values.podgrouper.args | nindent 12 }}
+            {{- toYaml .Values.podgrouper.additionalArgs | nindent 12 }}
           {{- end }}
           {{- if .Values.podgrouper.resources }}
           resources:
