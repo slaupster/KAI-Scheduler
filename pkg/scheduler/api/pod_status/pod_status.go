@@ -3,14 +3,15 @@
 
 package pod_status
 
-import "golang.org/x/exp/slices"
-
 // PodStatus defines the status of a task/pod.
 type PodStatus int
 
 const (
 	// Pending means the task is pending in the apiserver.
 	Pending PodStatus = 1 << iota
+
+	// Gated means the task is gated in the apiserver.
+	Gated
 
 	// Allocated means the scheduler assigns a host to it.
 	Allocated
@@ -44,10 +45,21 @@ const (
 	Deleted
 )
 
+// Status group constants using bitwise OR
+const (
+	activeUsedStatuses      = Allocated | Pipelined | Binding | Bound | Running | Releasing
+	activeAllocatedStatuses = Allocated | Pipelined | Binding | Bound | Running
+	aliveStatuses           = Allocated | Pipelined | Binding | Bound | Running | Pending | Gated
+	boundStatuses           = Allocated | Bound | Running | Releasing
+	allocatedStatuses       = Allocated | Bound | Binding | Running
+)
+
 func (ps PodStatus) String() string {
 	switch ps {
 	case Pending:
 		return "Pending"
+	case Gated:
+		return "Gated"
 	case Allocated:
 		return "Allocated"
 	case Pipelined:
@@ -71,28 +83,22 @@ func (ps PodStatus) String() string {
 	}
 }
 
-var activeUsedStatuses = []PodStatus{Allocated, Pipelined, Binding, Bound, Running, Releasing}
-var activeAllocatedStatuses = []PodStatus{Allocated, Pipelined, Binding, Bound, Running}
-var aliveStatuses = []PodStatus{Allocated, Pipelined, Binding, Bound, Running, Pending}
-var boundStatuses = []PodStatus{Allocated, Bound, Running, Releasing}
-var allocatedStatuses = []PodStatus{Allocated, Bound, Binding, Running}
-
 func IsAliveStatus(statusInput PodStatus) bool {
-	return slices.Contains(aliveStatuses, statusInput)
+	return aliveStatuses&statusInput != 0
 }
 
 func IsActiveUsedStatus(statusInput PodStatus) bool {
-	return slices.Contains(activeUsedStatuses, statusInput)
+	return activeUsedStatuses&statusInput != 0
 }
 
 func IsActiveAllocatedStatus(statusInput PodStatus) bool {
-	return slices.Contains(activeAllocatedStatuses, statusInput)
+	return activeAllocatedStatuses&statusInput != 0
 }
 
 func IsPodBound(statusInput PodStatus) bool {
-	return slices.Contains(boundStatuses, statusInput)
+	return boundStatuses&statusInput != 0
 }
 
 func AllocatedStatus(status PodStatus) bool {
-	return slices.Contains(allocatedStatuses, status)
+	return allocatedStatuses&status != 0
 }

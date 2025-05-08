@@ -125,7 +125,7 @@ func CreatePodObject(namespace, name string, resources corev1.ResourceRequiremen
 	return pod
 }
 
-func GroupPods(ctx context.Context, c client.Client, queueName, podgroupName string, pods []*corev1.Pod) error {
+func GroupPods(ctx context.Context, c client.Client, queueName, podgroupName string, pods []*corev1.Pod, minMember int32) error {
 	if len(pods) == 0 {
 		return fmt.Errorf("no pods to group")
 	}
@@ -137,7 +137,7 @@ func GroupPods(ctx context.Context, c client.Client, queueName, podgroupName str
 		},
 		Spec: schedulingv2alpha2.PodGroupSpec{
 			Queue:             queueName,
-			MinMember:         int32(len(pods)),
+			MinMember:         minMember,
 			MarkUnschedulable: ptr.To(true),
 		},
 	}
@@ -218,6 +218,32 @@ func WaitForPodScheduled(ctx context.Context, c client.Client, podName, namespac
 				return true, nil
 			}
 		}
+		return false, nil
+	})
+}
+
+// WaitForPodUnschedulable waits for a pod to be unschedulable
+func WaitForPodUnschedulable(ctx context.Context, c client.Client, podName, namespace string, timeout, interval time.Duration) error {
+	return wait.PollUntilContextTimeout(ctx, interval, timeout, true, func(ctx context.Context) (bool, error) {
+		var pod corev1.Pod
+		err := c.Get(ctx, client.ObjectKey{Name: podName, Namespace: namespace}, &pod)
+		if err != nil {
+			return false, err
+		}
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type != corev1.PodScheduled {
+				continue
+			}
+
+			if condition.Status != corev1.ConditionFalse {
+				return false, nil
+			}
+
+			if condition.Reason == corev1.PodReasonUnschedulable {
+				return true, nil
+			}
+		}
+
 		return false, nil
 	})
 }
