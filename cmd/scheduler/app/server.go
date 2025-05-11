@@ -155,8 +155,13 @@ func Run(opt *options.ServerOption, config *restclient.Config, mux *http.ServeMu
 	}()
 
 	run := func(ctx context.Context) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.InfraLogger.Errorf("Panic in scheduler: %v", r)
+			}
+			<-ctx.Done()
+		}()
 		scheduler.Run(ctx.Done())
-		<-ctx.Done()
 	}
 
 	if !opt.EnableLeaderElection {

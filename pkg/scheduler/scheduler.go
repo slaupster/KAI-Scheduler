@@ -80,6 +80,7 @@ func (s *Scheduler) Run(stopCh <-chan struct{}) {
 
 	go func() {
 		wait.Until(s.runOnce, s.schedulePeriod, stopCh)
+		log.InfraLogger.V(1).Info("Scheduler stopped")
 	}()
 }
 
