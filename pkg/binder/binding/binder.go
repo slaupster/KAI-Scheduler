@@ -42,12 +42,13 @@ func NewBinder(kubeClient client.Client, rrs resourcereservation.Interface, plug
 
 func (b *Binder) Bind(ctx context.Context, pod *v1.Pod, node *v1.Node, bindRequest *v1alpha2.BindRequest) error {
 	logger := log.FromContext(ctx)
-	err := b.resourceReservationService.SyncForNode(ctx, bindRequest.Spec.SelectedNode)
+	/*err := b.resourceReservationService.SyncForNode(ctx, bindRequest.Spec.SelectedNode)
 	if err != nil {
 		logger.Error(err, "Failed to sync reservation for node",
 			"pod", pod.Name, "namespace", pod.Namespace, "node", node.Name)
 		return err
-	}
+	}*/
+	var err error
 	var reservedGPUIds []string
 	if common.IsSharedGPUAllocation(bindRequest) {
 		reservedGPUIds, err = b.reserveGPUs(ctx, pod, bindRequest)
