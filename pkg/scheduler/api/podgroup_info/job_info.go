@@ -76,6 +76,10 @@ type PodGroupInfo struct {
 	StalenessInfo
 
 	schedulingConstraintsSignature common_info.SchedulingConstraintsSignature
+
+	// inner cache
+	tasksToAllocate             []*pod_info.PodInfo
+	tasksToAllocateInitResource *resource_info.Resource
 }
 
 func NewPodGroupInfo(uid common_info.PodGroupID, tasks ...*pod_info.PodInfo) *PodGroupInfo {
@@ -155,6 +159,10 @@ func (podGroupInfo *PodGroupInfo) addTaskIndex(ti *pod_info.PodInfo) {
 	}
 
 	podGroupInfo.PodStatusIndex[ti.Status][ti.UID] = ti
+
+	// invalidate cache
+	podGroupInfo.tasksToAllocate = nil
+	podGroupInfo.tasksToAllocateInitResource = nil
 }
 
 func (podGroupInfo *PodGroupInfo) AddTaskInfo(ti *pod_info.PodInfo) {
@@ -186,6 +194,10 @@ func (podGroupInfo *PodGroupInfo) deleteTaskIndex(ti *pod_info.PodInfo) {
 		if len(tasks) == 0 {
 			delete(podGroupInfo.PodStatusIndex, ti.Status)
 		}
+
+		// invalidate cache
+		podGroupInfo.tasksToAllocate = nil
+		podGroupInfo.tasksToAllocateInitResource = nil
 	}
 }
 
@@ -344,6 +356,9 @@ func (podGroupInfo *PodGroupInfo) CloneWithTasks(tasks []*pod_info.PodInfo) *Pod
 
 		PodStatusIndex: map[pod_status.PodStatus]pod_info.PodsMap{},
 		PodInfos:       pod_info.PodsMap{},
+
+		tasksToAllocate:             nil,
+		tasksToAllocateInitResource: nil,
 	}
 
 	podGroupInfo.CreationTimestamp.DeepCopyInto(&info.CreationTimestamp)
