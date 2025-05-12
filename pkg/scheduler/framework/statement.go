@@ -362,11 +362,15 @@ func (s *Statement) commitAllocate(task *pod_info.PodInfo) error {
 	}
 	labels := getNodePoolLabelsToPatchForPod(task, podGroup)
 
-	err = k8s_utils.Helpers.PatchPodAnnotationsAndLabelsInterface(
-		s.ssn.Cache.KubeClient(), task.Pod, map[string]interface{}{}, labels)
-	if err == nil {
-		task.IsVirtualStatus = false
-	}
+	go func() {
+		err = k8s_utils.Helpers.PatchPodAnnotationsAndLabelsInterface(
+			s.ssn.Cache.KubeClient(), task.Pod, map[string]interface{}{}, labels)
+		if err != nil {
+			log.InfraLogger.Errorf("Failed to patch pod: %v", err)
+		}
+	}()
+
+	task.IsVirtualStatus = false
 	return err
 }
 
