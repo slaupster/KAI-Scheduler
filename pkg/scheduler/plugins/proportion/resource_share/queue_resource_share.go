@@ -47,6 +47,9 @@ type QueueResourceShare struct {
 	CPU    ResourceShare
 	Memory ResourceShare
 	GPU    ResourceShare
+
+	// inner cache
+	lastDeservedShare ResourceQuantities
 }
 type resourceShareMapFunc func(rs *ResourceShare) float64
 
@@ -91,10 +94,13 @@ func (qrs *QueueResourceShare) GetAllocatedNonPreemptible() ResourceQuantities {
 }
 
 func (qrs *QueueResourceShare) GetDeservedShare() ResourceQuantities {
-	f := func(rs *ResourceShare) float64 {
-		return rs.Deserved
+	if qrs.lastDeservedShare == nil {
+		f := func(rs *ResourceShare) float64 {
+			return rs.Deserved
+		}
+		qrs.lastDeservedShare = qrs.buildResourceQuantities(f)
 	}
-	return qrs.buildResourceQuantities(f)
+	return qrs.lastDeservedShare
 }
 
 func (qrs *QueueResourceShare) GetMaxAllowedShare() ResourceQuantities {
@@ -164,4 +170,7 @@ func (qrs *QueueResourceShare) SetQuotaResources(resource ResourceName, deserved
 	resourceShare.Deserved = deserved
 	resourceShare.MaxAllowed = maxAllowed
 	resourceShare.OverQuotaWeight = overQuotaWeight
+
+	// invalidate cache
+	qrs.lastDeservedShare = nil
 }
