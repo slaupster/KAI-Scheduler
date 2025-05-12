@@ -78,6 +78,7 @@ type PodGroupInfo struct {
 	schedulingConstraintsSignature common_info.SchedulingConstraintsSignature
 
 	// inner cache
+	activeAllocatedTasks        []*pod_info.PodInfo
 	tasksToAllocate             []*pod_info.PodInfo
 	tasksToAllocateInitResource *resource_info.Resource
 }
@@ -163,6 +164,7 @@ func (podGroupInfo *PodGroupInfo) addTaskIndex(ti *pod_info.PodInfo) {
 	// invalidate cache
 	podGroupInfo.tasksToAllocate = nil
 	podGroupInfo.tasksToAllocateInitResource = nil
+	podGroupInfo.activeAllocatedTasks = nil
 }
 
 func (podGroupInfo *PodGroupInfo) AddTaskInfo(ti *pod_info.PodInfo) {
@@ -198,16 +200,23 @@ func (podGroupInfo *PodGroupInfo) deleteTaskIndex(ti *pod_info.PodInfo) {
 		// invalidate cache
 		podGroupInfo.tasksToAllocate = nil
 		podGroupInfo.tasksToAllocateInitResource = nil
+		podGroupInfo.activeAllocatedTasks = nil
 	}
 }
 
 func (podGroupInfo *PodGroupInfo) GetActiveAllocatedTasks() []*pod_info.PodInfo {
+	if podGroupInfo.activeAllocatedTasks != nil {
+		return podGroupInfo.activeAllocatedTasks
+	}
+
 	var tasksToAllocate []*pod_info.PodInfo
 	for _, task := range podGroupInfo.PodInfos {
 		if pod_status.IsActiveAllocatedStatus(task.Status) {
 			tasksToAllocate = append(tasksToAllocate, task)
 		}
 	}
+
+	podGroupInfo.activeAllocatedTasks = tasksToAllocate
 	return tasksToAllocate
 }
 
@@ -359,6 +368,7 @@ func (podGroupInfo *PodGroupInfo) CloneWithTasks(tasks []*pod_info.PodInfo) *Pod
 
 		tasksToAllocate:             nil,
 		tasksToAllocateInitResource: nil,
+		activeAllocatedTasks:        nil,
 	}
 
 	podGroupInfo.CreationTimestamp.DeepCopyInto(&info.CreationTimestamp)
