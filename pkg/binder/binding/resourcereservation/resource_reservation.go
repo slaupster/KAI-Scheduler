@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/exp/slices"
@@ -49,6 +50,8 @@ type service struct {
 	reservationPodImage string
 	allocationTimeout   time.Duration
 	gpuGroupMutex       *group_mutex.GroupMutex
+	reservationPods     sync.Map
+
 	namespace           string
 	serviceAccountName  string
 	appLabelValue       string
@@ -91,6 +94,10 @@ func (rsc *service) Sync(ctx context.Context) error {
 }
 
 func (rsc *service) SyncForNode(ctx context.Context, nodeName string) error {
+	if !rsc.cachedReservationPodsOnNode(nodeName) {
+		return nil
+	}
+
 	podsList := &v1.PodList{}
 	err := rsc.kubeClient.List(ctx, podsList,
 		client.HasLabels{constants.GPUGroup},
@@ -185,6 +192,8 @@ func (rsc *service) syncForPods(ctx context.Context, pods []*v1.Pod, gpuGroupToS
 			}
 		}
 	}
+
+	rsc.addReservationPodsToCache(reservationPods)
 
 	for gpuGroup, reservationPod := range reservationPods {
 		if _, found := fractionPods[gpuGroup]; !found {
@@ -374,6 +383,8 @@ func (rsc *service) deleteReservationPod(ctx context.Context, pod *v1.Pod) error
 	)
 	if err != nil {
 		logger.Error(err, "Failed to delete reservation pod", "name", pod.Name)
+	} else {
+		rsc.removeReservationPodFromCache(pod)
 	}
 	return client.IgnoreNotFound(err)
 }
@@ -523,4 +534,34 @@ func (rsc *service) isScalingUp(ctx context.Context) bool {
 		}
 	}
 	return false
+}
+
+func (rsc *service) addReservationPodsToCache(reservationPods map[string]*v1.Pod) {
+	for gpuGroup, pod := range reservationPods {
+		nodeName := pod.Spec.NodeName
+		gpuGroups, found := rsc.reservationPods.Load(nodeName)
+		if !found {
+			gpuGroups = make(map[string]string)
+		}
+		gpuGroups.(map[string]string)[gpuGroup] = pod.Name
+		rsc.reservationPods.Store(nodeName, gpuGroups)
+	}
+
+}
+
+func (rsc *service) removeReservationPodFromCache(pod *v1.Pod) {
+	nodeName := pod.Spec.NodeName
+	gpuGroups, found := rsc.reservationPods.Load(nodeName)
+	if found {
+		delete(gpuGroups.(map[string]string), pod.Labels[constants.GPUGroup])
+		rsc.reservationPods.Store(nodeName, gpuGroups)
+	}
+}
+
+func (rsc *service) cachedReservationPodsOnNode(nodeName string) bool {
+	podGroups, found := rsc.reservationPods.Load(nodeName)
+	if !found {
+		return false
+	}
+	return len(podGroups.(map[string]string)) > 0
 }
