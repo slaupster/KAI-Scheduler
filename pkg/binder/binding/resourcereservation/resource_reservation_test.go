@@ -856,6 +856,14 @@ var _ = Describe("ResourceReservationService", func() {
 				fakeClient := interceptor.NewClient(clientWithObjs, testData.clientInterceptFuncs)
 				rsc := initializeTestService(fakeClient)
 
+				sharedGPUPods := map[string][]*v1.Pod{}
+				for _, podObj := range testData.podsInCluster {
+					pod := podObj.(*v1.Pod)
+					if gpuGroup, found := pod.Labels[constants.GPUGroup]; found {
+						sharedGPUPods[gpuGroup] = append(sharedGPUPods[gpuGroup], pod)
+					}
+				}
+				rsc.addSharedGPUPodsToCache(sharedGPUPods)
 				err := rsc.SyncForNode(context.TODO(), nodeName)
 				if testData.expectedErrorContains == "" {
 					Expect(err).To(BeNil())
