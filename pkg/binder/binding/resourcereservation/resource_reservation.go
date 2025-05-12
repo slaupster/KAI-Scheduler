@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/exp/slices"
@@ -43,12 +44,16 @@ const (
 	nodeIndex                      = "runai-node"
 )
 
+type gpuGroupToPodsMap map[string]map[string]bool
+
 type service struct {
 	fakeGPuNodes        bool
 	kubeClient          client.WithWatch
 	reservationPodImage string
 	allocationTimeout   time.Duration
 	gpuGroupMutex       *group_mutex.GroupMutex
+	sharedGPUPods     sync.Map
+
 	namespace           string
 	serviceAccountName  string
 	appLabelValue       string
@@ -91,6 +96,10 @@ func (rsc *service) Sync(ctx context.Context) error {
 }
 
 func (rsc *service) SyncForNode(ctx context.Context, nodeName string) error {
+	if !rsc.cachedSharedGPUPodsOnNode(nodeName) {
+		return nil
+	}
+
 	podsList := &v1.PodList{}
 	err := rsc.kubeClient.List(ctx, podsList,
 		client.HasLabels{constants.GPUGroup},
@@ -161,7 +170,7 @@ func (rsc *service) syncForGpuGroupWithLock(ctx context.Context, gpuGroup string
 func (rsc *service) syncForPods(ctx context.Context, pods []*v1.Pod, gpuGroupToSync string) error {
 	logger := log.FromContext(ctx)
 	reservationPods := map[string]*v1.Pod{}
-	fractionPods := map[string][]*v1.Pod{}
+	sharedGPUPods := map[string][]*v1.Pod{}
 
 	for _, pod := range pods {
 		if pod.Namespace == rsc.namespace {
@@ -173,11 +182,11 @@ func (rsc *service) syncForPods(ctx context.Context, pods []*v1.Pod, gpuGroupToS
 			[]v1.PodPhase{v1.PodRunning, v1.PodPending},
 			pod.Status.Phase,
 		) {
-			fractionPods[gpuGroupToSync] = append(fractionPods[gpuGroupToSync], pod)
+			sharedGPUPods[gpuGroupToSync] = append(sharedGPUPods[gpuGroupToSync], pod)
 		}
 	}
 
-	for gpuGroup, pods := range fractionPods {
+	for gpuGroup, pods := range sharedGPUPods {
 		if _, found := reservationPods[gpuGroup]; !found {
 			err := rsc.deleteNonReservedPods(ctx, gpuGroup, pods)
 			if err != nil {
@@ -186,8 +195,10 @@ func (rsc *service) syncForPods(ctx context.Context, pods []*v1.Pod, gpuGroupToS
 		}
 	}
 
+	rsc.addSharedGPUPodsToCache(sharedGPUPods)
+
 	for gpuGroup, reservationPod := range reservationPods {
-		if _, found := fractionPods[gpuGroup]; !found {
+		if _, found := sharedGPUPods[gpuGroup]; !found {
 			logger.Info("Did not find fraction pod for gpu group, deleting reservation pod",
 				"gpuGroup", gpuGroup)
 			err := rsc.deleteReservationPod(ctx, reservationPod)
@@ -374,6 +385,8 @@ func (rsc *service) deleteReservationPod(ctx context.Context, pod *v1.Pod) error
 	)
 	if err != nil {
 		logger.Error(err, "Failed to delete reservation pod", "name", pod.Name)
+	} else {
+		rsc.removeSharedGPUPodFromCache(pod)
 	}
 	return client.IgnoreNotFound(err)
 }
@@ -523,4 +536,60 @@ func (rsc *service) isScalingUp(ctx context.Context) bool {
 		}
 	}
 	return false
+}
+
+func (rsc *service) addSharedGPUPodsToCache(groupToPods map[string][]*v1.Pod) {
+	for gpuGroup, pods := range groupToPods {
+		for _, pod := range pods {
+			nodeName := pod.Spec.NodeName
+			if len(nodeName) == 0 {
+				continue
+			}
+			gpuGroups, found := rsc.sharedGPUPods.Load(nodeName)
+			if !found {
+				gpuGroups = make(gpuGroupToPodsMap)
+			}
+
+			if _, found := gpuGroups.(gpuGroupToPodsMap)[gpuGroup]; !found {
+				gpuGroups.(gpuGroupToPodsMap)[gpuGroup] = make(map[string]bool)
+			}
+			gpuGroups.(gpuGroupToPodsMap)[gpuGroup][pod.Name] = true
+			rsc.sharedGPUPods.Store(nodeName, gpuGroups)
+		}
+	}
+
+}
+
+func (rsc *service) removeSharedGPUPodFromCache(pod *v1.Pod) {
+	nodeName := pod.Spec.NodeName
+	gpuGroupsOjb, found := rsc.sharedGPUPods.Load(nodeName)
+	if !found {
+		return
+	}
+	gpuGroups := gpuGroupsOjb.(gpuGroupToPodsMap)
+
+	gpuGroup, found := pod.Labels[constants.GPUGroup]
+	if !found {
+		return
+	}
+	podsInGroup, found := gpuGroups[gpuGroup]
+	if _, found := podsInGroup[pod.Name]; found {
+		delete(podsInGroup, pod.Name)
+	}
+	if len(podsInGroup) == 0 {
+		delete(gpuGroups, gpuGroup)
+	}
+	if len(gpuGroups) > 0 {
+		rsc.sharedGPUPods.Store(nodeName, gpuGroups)
+	} else {
+		rsc.sharedGPUPods.Delete(nodeName)
+	}
+}
+
+func (rsc *service) cachedSharedGPUPodsOnNode(nodeName string) bool {
+	podGroups, found := rsc.sharedGPUPods.Load(nodeName)
+	if !found {
+		return false
+	}
+	return len(podGroups.(gpuGroupToPodsMap)) > 0
 }
