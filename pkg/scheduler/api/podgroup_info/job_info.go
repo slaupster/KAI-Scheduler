@@ -63,7 +63,7 @@ type PodGroupInfo struct {
 	// All tasks of the Job.
 	PodStatusIndex       map[pod_status.PodStatus]pod_info.PodsMap
 	PodInfos             pod_info.PodsMap
-	activeAllocatedCount int
+	ActiveAllocatedCount int
 
 	Allocated *resource_info.Resource
 
@@ -161,7 +161,7 @@ func (podGroupInfo *PodGroupInfo) addTaskIndex(ti *pod_info.PodInfo) {
 
 	podGroupInfo.PodStatusIndex[ti.Status][ti.UID] = ti
 	if pod_status.IsActiveAllocatedStatus(ti.Status) {
-		podGroupInfo.activeAllocatedCount += 1
+		podGroupInfo.ActiveAllocatedCount += 1
 	}
 
 	// invalidate cache
@@ -195,7 +195,7 @@ func (podGroupInfo *PodGroupInfo) deleteTaskIndex(ti *pod_info.PodInfo) {
 	if tasks, found := podGroupInfo.PodStatusIndex[ti.Status]; found {
 		delete(tasks, ti.UID)
 		if pod_status.IsActiveAllocatedStatus(ti.Status) {
-			podGroupInfo.activeAllocatedCount -= 1
+			podGroupInfo.ActiveAllocatedCount -= 1
 		}
 
 		if len(tasks) == 0 {
@@ -209,7 +209,7 @@ func (podGroupInfo *PodGroupInfo) deleteTaskIndex(ti *pod_info.PodInfo) {
 }
 
 func (podGroupInfo *PodGroupInfo) GetActiveAllocatedTasksCount() int {
-	return podGroupInfo.activeAllocatedCount
+	return podGroupInfo.ActiveAllocatedCount
 }
 
 func (podGroupInfo *PodGroupInfo) GetActivelyRunningTasksCount() int {
