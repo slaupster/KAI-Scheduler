@@ -80,10 +80,6 @@ func (qrs *QueueResourceShare) GetFairShare() ResourceQuantities {
 		}
 		qrs.lastFairShare = qrs.buildResourceQuantities(f)
 	}
-	f := func(rs *ResourceShare) float64 {
-		return rs.FairShare
-	}
-	return qrs.buildResourceQuantities(f)
 	return qrs.lastFairShare
 }
 
