@@ -50,6 +50,7 @@ type QueueResourceShare struct {
 
 	// inner cache
 	lastDeservedShare ResourceQuantities
+	lastFairShare     ResourceQuantities
 }
 type resourceShareMapFunc func(rs *ResourceShare) float64
 
@@ -73,10 +74,17 @@ func (qrs *QueueResourceShare) GetAllocatableShare() ResourceQuantities {
 }
 
 func (qrs *QueueResourceShare) GetFairShare() ResourceQuantities {
+	if qrs.lastFairShare == nil {
+		f := func(rs *ResourceShare) float64 {
+			return rs.FairShare
+		}
+		qrs.lastFairShare = qrs.buildResourceQuantities(f)
+	}
 	f := func(rs *ResourceShare) float64 {
 		return rs.FairShare
 	}
 	return qrs.buildResourceQuantities(f)
+	return qrs.lastFairShare
 }
 
 func (qrs *QueueResourceShare) GetAllocatedShare() ResourceQuantities {
@@ -162,6 +170,9 @@ func (qrs *QueueResourceShare) GetDominantResourceShare(totalResources ResourceQ
 func (qrs *QueueResourceShare) AddResourceShare(resource ResourceName, amount float64) {
 	resourceShare := qrs.ResourceShare(resource)
 	resourceShare.FairShare += amount
+
+	// invalidate fairshare cache
+	qrs.lastFairShare = nil
 }
 
 func (qrs *QueueResourceShare) SetQuotaResources(resource ResourceName, deserved float64, maxAllowed float64,
@@ -171,6 +182,7 @@ func (qrs *QueueResourceShare) SetQuotaResources(resource ResourceName, deserved
 	resourceShare.MaxAllowed = maxAllowed
 	resourceShare.OverQuotaWeight = overQuotaWeight
 
-	// invalidate cache
+	// invalidate cache for deserved share
 	qrs.lastDeservedShare = nil
+	qrs.lastFairShare = nil
 }
