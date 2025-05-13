@@ -61,8 +61,9 @@ type PodGroupInfo struct {
 	NodesFitErrors map[common_info.PodID]*common_info.FitErrors
 
 	// All tasks of the Job.
-	PodStatusIndex map[pod_status.PodStatus]pod_info.PodsMap
-	PodInfos       pod_info.PodsMap
+	PodStatusIndex       map[pod_status.PodStatus]pod_info.PodsMap
+	PodInfos             pod_info.PodsMap
+	activeAllocatedCount int
 
 	Allocated *resource_info.Resource
 
@@ -78,7 +79,6 @@ type PodGroupInfo struct {
 	schedulingConstraintsSignature common_info.SchedulingConstraintsSignature
 
 	// inner cache
-	activeAllocatedTasks        []*pod_info.PodInfo
 	tasksToAllocate             []*pod_info.PodInfo
 	tasksToAllocateInitResource *resource_info.Resource
 }
@@ -160,11 +160,13 @@ func (podGroupInfo *PodGroupInfo) addTaskIndex(ti *pod_info.PodInfo) {
 	}
 
 	podGroupInfo.PodStatusIndex[ti.Status][ti.UID] = ti
+	if pod_status.IsActiveAllocatedStatus(ti.Status) {
+		podGroupInfo.activeAllocatedCount += 1
+	}
 
 	// invalidate cache
 	podGroupInfo.tasksToAllocate = nil
 	podGroupInfo.tasksToAllocateInitResource = nil
-	podGroupInfo.activeAllocatedTasks = nil
 }
 
 func (podGroupInfo *PodGroupInfo) AddTaskInfo(ti *pod_info.PodInfo) {
@@ -192,6 +194,9 @@ func (podGroupInfo *PodGroupInfo) UpdateTaskStatus(task *pod_info.PodInfo, statu
 func (podGroupInfo *PodGroupInfo) deleteTaskIndex(ti *pod_info.PodInfo) {
 	if tasks, found := podGroupInfo.PodStatusIndex[ti.Status]; found {
 		delete(tasks, ti.UID)
+		if pod_status.IsActiveAllocatedStatus(ti.Status) {
+			podGroupInfo.activeAllocatedCount -= 1
+		}
 
 		if len(tasks) == 0 {
 			delete(podGroupInfo.PodStatusIndex, ti.Status)
@@ -200,34 +205,21 @@ func (podGroupInfo *PodGroupInfo) deleteTaskIndex(ti *pod_info.PodInfo) {
 		// invalidate cache
 		podGroupInfo.tasksToAllocate = nil
 		podGroupInfo.tasksToAllocateInitResource = nil
-		podGroupInfo.activeAllocatedTasks = nil
 	}
 }
 
-func (podGroupInfo *PodGroupInfo) GetActiveAllocatedTasks() []*pod_info.PodInfo {
-	if podGroupInfo.activeAllocatedTasks != nil {
-		return podGroupInfo.activeAllocatedTasks
-	}
-
-	var tasksToAllocate []*pod_info.PodInfo
-	for _, task := range podGroupInfo.PodInfos {
-		if pod_status.IsActiveAllocatedStatus(task.Status) {
-			tasksToAllocate = append(tasksToAllocate, task)
-		}
-	}
-
-	podGroupInfo.activeAllocatedTasks = tasksToAllocate
-	return tasksToAllocate
+func (podGroupInfo *PodGroupInfo) GetActiveAllocatedTasksCount() int {
+	return podGroupInfo.activeAllocatedCount
 }
 
-func (podGroupInfo *PodGroupInfo) GetActivelyRunningTasks() []*pod_info.PodInfo {
-	var tasks []*pod_info.PodInfo
+func (podGroupInfo *PodGroupInfo) GetActivelyRunningTasksCount() int {
+	tasksCount := 0
 	for _, task := range podGroupInfo.PodInfos {
 		if pod_status.IsActiveUsedStatus(task.Status) {
-			tasks = append(tasks, task)
+			tasksCount += 1
 		}
 	}
-	return tasks
+	return tasksCount
 }
 
 func (podGroupInfo *PodGroupInfo) DeleteTaskInfo(ti *pod_info.PodInfo) error {
@@ -368,7 +360,6 @@ func (podGroupInfo *PodGroupInfo) CloneWithTasks(tasks []*pod_info.PodInfo) *Pod
 
 		tasksToAllocate:             nil,
 		tasksToAllocateInitResource: nil,
-		activeAllocatedTasks:        nil,
 	}
 
 	podGroupInfo.CreationTimestamp.DeepCopyInto(&info.CreationTimestamp)
