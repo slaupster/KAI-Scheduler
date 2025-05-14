@@ -18,6 +18,22 @@ const (
 	WorkerName      = "Worker"
 )
 
-func GetPodGroupMetadata(topOwner *unstructured.Unstructured, pod *v1.Pod, _ ...*metav1.PartialObjectMetadata) (*podgroup.Metadata, error) {
-	return kubeflow.GetPodGroupMetadata(topOwner, pod, ReplicaSpecName, []string{MasterName, WorkerName})
+type XGBoostGrouper struct {
+	*kubeflow.KubeflowDistributedGrouper
+}
+
+func NewXGBoostGrouper(kubeflowGrouper *kubeflow.KubeflowDistributedGrouper) *XGBoostGrouper {
+	return &XGBoostGrouper{
+		kubeflowGrouper,
+	}
+}
+
+func (xgbg *XGBoostGrouper) Name() string {
+	return "XGBoost Grouper"
+}
+
+func (xgbg *XGBoostGrouper) GetPodGroupMetadata(
+	topOwner *unstructured.Unstructured, pod *v1.Pod, _ ...*metav1.PartialObjectMetadata,
+) (*podgroup.Metadata, error) {
+	return xgbg.KubeflowDistributedGrouper.GetPodGroupMetadata(topOwner, pod, ReplicaSpecName, []string{MasterName, WorkerName})
 }

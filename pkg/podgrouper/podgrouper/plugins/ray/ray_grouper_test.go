@@ -12,6 +12,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgrouper/plugins/defaultgrouper"
+)
+
+const (
+	queueLabelKey = "kai.scheduler/queue"
 )
 
 var (
@@ -54,9 +60,10 @@ func TestGetPodGroupMetadata_RayCluster(t *testing.T) {
 	pod := &v1.Pod{}
 
 	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(rayCluster).Build()
-	grouper := NewRayGrouper(client)
+	rayGrouper := NewRayGrouper(client, defaultgrouper.NewDefaultGrouper(queueLabelKey))
+	grouper := NewRayClusterGrouper(rayGrouper)
 
-	podGroupMetadata, err := grouper.GetPodGroupMetadataForRayCluster(rayCluster, pod)
+	podGroupMetadata, err := grouper.GetPodGroupMetadata(rayCluster, pod)
 
 	assert.Nil(t, err)
 	assert.Equal(t, "RayCluster", podGroupMetadata.Owner.Kind)
@@ -95,9 +102,10 @@ func TestGetPodGroupMetadata_RayJob(t *testing.T) {
 	pod := &v1.Pod{}
 
 	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(rayCluster).Build()
-	grouper := NewRayGrouper(client)
+	rayGrouper := NewRayGrouper(client, defaultgrouper.NewDefaultGrouper(queueLabelKey))
+	grouper := NewRayJobGrouper(rayGrouper)
 
-	podGroupMetadata, err := grouper.GetPodGroupMetadataForRayJob(owner, pod)
+	podGroupMetadata, err := grouper.GetPodGroupMetadata(owner, pod)
 
 	assert.Nil(t, err)
 	assert.Equal(t, "RayJob", podGroupMetadata.Owner.Kind)
@@ -139,9 +147,10 @@ func TestGetPodGroupMetadata_RayJob_v1(t *testing.T) {
 	rayClusterCopy.SetAPIVersion("ray.io/v1")
 
 	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(rayClusterCopy).Build()
-	grouper := NewRayGrouper(client)
+	rayGrouper := NewRayGrouper(client, defaultgrouper.NewDefaultGrouper(queueLabelKey))
+	grouper := NewRayJobGrouper(rayGrouper)
 
-	podGroupMetadata, err := grouper.GetPodGroupMetadataForRayJob(owner, pod)
+	podGroupMetadata, err := grouper.GetPodGroupMetadata(owner, pod)
 
 	assert.Nil(t, err)
 	assert.Equal(t, "RayJob", podGroupMetadata.Owner.Kind)
@@ -200,9 +209,10 @@ func TestGetPodGroupMetadata_RayService(t *testing.T) {
 	})
 
 	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(rayClusterCopy).Build()
-	grouper := NewRayGrouper(client)
+	rayGrouper := NewRayGrouper(client, defaultgrouper.NewDefaultGrouper(queueLabelKey))
+	grouper := NewRayServiceGrouper(rayGrouper)
 
-	podGroupMetadata, err := grouper.GetPodGroupMetadataForRayService(rayService, pod)
+	podGroupMetadata, err := grouper.GetPodGroupMetadata(rayService, pod)
 
 	assert.Nil(t, err)
 	assert.Equal(t, "RayService", podGroupMetadata.Owner.Kind)

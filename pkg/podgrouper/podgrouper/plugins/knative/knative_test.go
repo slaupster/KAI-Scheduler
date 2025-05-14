@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/NVIDIA/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
-	commonconstants "github.com/NVIDIA/KAI-scheduler/pkg/common/constants"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +16,14 @@ import (
 	knative "knative.dev/serving/pkg/apis/serving/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/NVIDIA/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
+	commonconstants "github.com/NVIDIA/KAI-scheduler/pkg/common/constants"
 	"github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgrouper/plugins/constants"
+	"github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgrouper/plugins/defaultgrouper"
+)
+
+const (
+	queueLabelKey = "kai.scheduler/queue"
 )
 
 func TestGetPodGroupMetadata(t *testing.T) {
@@ -41,7 +46,7 @@ func TestGetPodGroupMetadata(t *testing.T) {
 				"template": map[string]interface{}{
 					"metadata": map[string]interface{}{
 						"labels": map[string]interface{}{
-							"runai/queue": "test_queue",
+							queueLabelKey: "test_queue",
 						},
 					},
 					"spec": map[string]interface{}{
@@ -76,7 +81,7 @@ func TestGetPodGroupMetadata(t *testing.T) {
 			Namespace: "test_namespace",
 			Labels: map[string]string{
 				knativeRevisionLabel: "revision",
-				"runai/queue":        "test_queue",
+				queueLabelKey:        "test_queue",
 			},
 			UID: "3",
 		},
@@ -91,7 +96,8 @@ func TestGetPodGroupMetadata(t *testing.T) {
 	assert.Nil(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(rev).Build()
-	grouper := NewKnativeGrouper(client, true)
+	defaultGrouper := defaultgrouper.NewDefaultGrouper(queueLabelKey)
+	grouper := NewKnativeGrouper(client, defaultGrouper, true)
 
 	metadata, err := grouper.GetPodGroupMetadata(service, pod)
 	assert.Nil(t, err)
@@ -120,7 +126,7 @@ func TestGetPodGroupMetadata_MinScale(t *testing.T) {
 				"template": map[string]interface{}{
 					"metadata": map[string]interface{}{
 						"labels": map[string]interface{}{
-							"runai/queue": "test_queue",
+							queueLabelKey: "test_queue",
 						},
 					},
 					"spec": map[string]interface{}{
@@ -158,7 +164,7 @@ func TestGetPodGroupMetadata_MinScale(t *testing.T) {
 			Namespace: "test_namespace",
 			Labels: map[string]string{
 				knativeRevisionLabel: "revision",
-				"runai/queue":        "test_queue",
+				queueLabelKey:        "test_queue",
 			},
 			UID: "3",
 		},
@@ -173,7 +179,8 @@ func TestGetPodGroupMetadata_MinScale(t *testing.T) {
 	assert.Nil(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(rev).Build()
-	grouper := NewKnativeGrouper(client, true)
+	defaultGrouper := defaultgrouper.NewDefaultGrouper(queueLabelKey)
+	grouper := NewKnativeGrouper(client, defaultGrouper, true)
 
 	metadata, err := grouper.GetPodGroupMetadata(service, pod)
 	assert.Nil(t, err)
@@ -594,7 +601,8 @@ func TestGetPodGroupMetadataBackwardsCompatibility(t *testing.T) {
 			if test.gangSchedule != nil {
 				gangSchedule = *test.gangSchedule
 			}
-			grouper := NewKnativeGrouper(client, gangSchedule)
+			defaultGrouper := defaultgrouper.NewDefaultGrouper(queueLabelKey)
+			grouper := NewKnativeGrouper(client, defaultGrouper, gangSchedule)
 
 			unstructuredService, err := runtime.DefaultUnstructuredConverter.ToUnstructured(test.service)
 			assert.Nil(t, err, "failed to convert knative service to unstructured")

@@ -18,8 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgroup"
-	"github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgrouper/plugins"
-	supportedtypes "github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgrouper/supported_types"
+	pluginshub "github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgrouper/hub"
 )
 
 type Interface interface {
@@ -29,9 +28,9 @@ type Interface interface {
 }
 
 type podGrouper struct {
-	supportedTypes supportedtypes.SupportedTypes
+	client     client.Client
+	pluginsHub *pluginshub.PluginsHub
 
-	client client.Client
 	// For runtime client with cache enabled, GET/LIST calls create an informer/watch for the specified object.
 	// Unfortunetly, this is true even if the GET call fails with an RBAC error. The created listener will panic and the reconciler crashes.
 	// Using a client without cache for calls that might get this error allow ius to handle the error gracefully.
@@ -42,15 +41,13 @@ type podGrouper struct {
 
 type GetPodGroupMetadataFunc func(topOwner *unstructured.Unstructured, pod *v1.Pod, otherOwners ...*metav1.PartialObjectMetadata) (*podgroup.Metadata, error)
 
-func NewPodgrouper(client client.Client, clientWithoutCache client.Client, searchForLegacyPodGroups, gangScheduleKnative bool) *podGrouper {
+func NewPodgrouper(client client.Client, clientWithoutCache client.Client, searchForLegacyPodGroups,
+	gangScheduleKnative bool, queueLabelKey string) *podGrouper {
 	podGrouper := &podGrouper{
 		client:             client,
 		clientWithoutCache: clientWithoutCache,
+		pluginsHub:         pluginshub.NewPluginsHub(client, searchForLegacyPodGroups, gangScheduleKnative, queueLabelKey),
 	}
-
-	supportedTypes := supportedtypes.NewSupportedTypes(client, searchForLegacyPodGroups, gangScheduleKnative)
-
-	podGrouper.supportedTypes = supportedTypes
 
 	return podGrouper
 }
@@ -82,13 +79,10 @@ func (pg *podGrouper) GetPodOwners(ctx context.Context, pod *v1.Pod) (
 func (pg *podGrouper) GetPGMetadata(ctx context.Context, pod *v1.Pod, topOwner *unstructured.Unstructured, allOwners []*metav1.PartialObjectMetadata) (*podgroup.Metadata, error) {
 	logger := log.FromContext(ctx)
 	ownerKind := metav1.GroupVersionKind(topOwner.GroupVersionKind())
-	if function, found := pg.supportedTypes.GetPodGroupMetadataFunc(ownerKind); found {
-		return function(topOwner, pod, allOwners...)
-	}
-
-	logger.V(1).Info("Implementation not found for top owner of pod, using the default implementation.",
+	plugin := pg.pluginsHub.GetPodGrouperPlugin(ownerKind)
+	logger.V(1).Info(fmt.Sprintf("Using %v plugin for pod.", plugin.Name()),
 		"pod", fmt.Sprintf("%s/%s", pod.Namespace, pod.Name), "topOwner", topOwner)
-	return plugins.GetPodGroupMetadata(topOwner, pod)
+	return plugin.GetPodGroupMetadata(topOwner, pod, allOwners...)
 }
 
 func (pg *podGrouper) getResourceOwners(ctx context.Context, pod *v1.Pod) (

@@ -15,19 +15,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgroup"
-	"github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgrouper/plugins"
+	"github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgrouper/plugins/defaultgrouper"
+	"github.com/NVIDIA/KAI-scheduler/pkg/podgrouper/podgrouper/plugins/grouper"
 )
 
 type skipTopOwnerGrouper struct {
-	client         client.Client
-	supportedTypes map[metav1.GroupVersionKind]plugins.GetPodGroupMetadataFunc
+	client        client.Client
+	defaultPlugin *defaultgrouper.DefaultGrouper
+	customPlugins map[metav1.GroupVersionKind]grouper.Grouper
 }
 
-func NewSkipTopOwnerGrouper(client client.Client, supportedTypes map[metav1.GroupVersionKind]plugins.GetPodGroupMetadataFunc) *skipTopOwnerGrouper {
+func NewSkipTopOwnerGrouper(client client.Client, defaultGrouper *defaultgrouper.DefaultGrouper,
+	customPlugins map[metav1.GroupVersionKind]grouper.Grouper) *skipTopOwnerGrouper {
 	return &skipTopOwnerGrouper{
-		client:         client,
-		supportedTypes: supportedTypes,
+		client:        client,
+		defaultPlugin: defaultGrouper,
+		customPlugins: customPlugins,
 	}
+}
+
+func (sk *skipTopOwnerGrouper) Name() string {
+	return "SkipTopOwner Grouper"
 }
 
 func (sk *skipTopOwnerGrouper) GetPodGroupMetadata(
@@ -60,10 +68,10 @@ func (sk *skipTopOwnerGrouper) getSupportedTypePGMetadata(
 	lastOwner *unstructured.Unstructured, pod *v1.Pod, otherOwners ...*metav1.PartialObjectMetadata,
 ) (*podgroup.Metadata, error) {
 	ownerKind := metav1.GroupVersionKind(lastOwner.GroupVersionKind())
-	if function, found := sk.supportedTypes[ownerKind]; found {
-		return function(lastOwner, pod, otherOwners...)
+	if grouper, found := sk.customPlugins[ownerKind]; found {
+		return grouper.GetPodGroupMetadata(lastOwner, pod, otherOwners...)
 	}
-	return plugins.GetPodGroupMetadata(lastOwner, pod, otherOwners...)
+	return sk.defaultPlugin.GetPodGroupMetadata(lastOwner, pod, otherOwners...)
 }
 
 func (sk *skipTopOwnerGrouper) getObjectInstance(objectRef *metav1.PartialObjectMetadata) (*unstructured.Unstructured, error) {
