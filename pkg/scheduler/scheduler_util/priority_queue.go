@@ -54,6 +54,10 @@ func (q *PriorityQueue) Peek() interface{} {
 	return q.queue.Peek()
 }
 
+func (q *PriorityQueue) Fix(index int) {
+	heap.Fix(&q.queue, index)
+}
+
 func (q *PriorityQueue) Empty() bool {
 	return q.queue.Len() == 0
 }
@@ -94,6 +98,5 @@ func (pq *priorityQueue) Peek() interface{} {
 		return nil
 	}
 
-	n := len(pq.items)
-	return pq.items[n-1]
+	return pq.items[0]
 }

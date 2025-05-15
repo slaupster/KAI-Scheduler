@@ -130,7 +130,7 @@ func (jobsOrder *JobsOrderByQueues) handleJobPopOutOfQueue(queue, department *qu
 func (jobsOrder *JobsOrderByQueues) getNextQueue(department *queue_info.QueueInfo) *queue_info.QueueInfo {
 	queue := jobsOrder.departmentIdToDepartmentMetadata[department.UID].queuesPriorityQueue.Peek().(*queue_info.QueueInfo)
 	if jobsOrder.queueIdToQueueMetadata[queue.UID].shouldUpdateQueueShare {
-		jobsOrder.updateTopQueueShare(department)
+		jobsOrder.updateTopQueueShare(queue, department)
 		queue = jobsOrder.departmentIdToDepartmentMetadata[department.UID].queuesPriorityQueue.Peek().(*queue_info.QueueInfo)
 	}
 
@@ -143,16 +143,15 @@ func (jobsOrder *JobsOrderByQueues) getNextQueue(department *queue_info.QueueInf
 	return queue
 }
 
-func (jobsOrder *JobsOrderByQueues) updateTopQueueShare(department *queue_info.QueueInfo) {
-	queue := jobsOrder.departmentIdToDepartmentMetadata[department.UID].queuesPriorityQueue.Pop().(*queue_info.QueueInfo)
-	jobsOrder.departmentIdToDepartmentMetadata[department.UID].queuesPriorityQueue.Push(queue)
-	jobsOrder.queueIdToQueueMetadata[queue.UID].shouldUpdateQueueShare = false
+func (jobsOrder *JobsOrderByQueues) updateTopQueueShare(topQueue *queue_info.QueueInfo, department *queue_info.QueueInfo) {
+	jobsOrder.departmentIdToDepartmentMetadata[department.UID].queuesPriorityQueue.Fix(0)
+	jobsOrder.queueIdToQueueMetadata[topQueue.UID].shouldUpdateQueueShare = false
 }
 
 func (jobsOrder *JobsOrderByQueues) getNextDepartment() *queue_info.QueueInfo {
 	department := jobsOrder.activeDepartments.Peek().(*queue_info.QueueInfo)
 	if jobsOrder.departmentIdToDepartmentMetadata[department.UID].shouldUpdateQueueShare {
-		jobsOrder.updateTopDepartmentShare()
+		jobsOrder.updateTopDepartmentShare(department)
 		department = jobsOrder.activeDepartments.Peek().(*queue_info.QueueInfo)
 	}
 	if jobsOrder.departmentIdToDepartmentMetadata[department.UID].queuesPriorityQueue.Empty() {
@@ -164,10 +163,9 @@ func (jobsOrder *JobsOrderByQueues) getNextDepartment() *queue_info.QueueInfo {
 	return department
 }
 
-func (jobsOrder *JobsOrderByQueues) updateTopDepartmentShare() {
-	department := jobsOrder.activeDepartments.Pop().(*queue_info.QueueInfo)
-	jobsOrder.activeDepartments.Push(department)
-	jobsOrder.departmentIdToDepartmentMetadata[department.UID].shouldUpdateQueueShare = false
+func (jobsOrder *JobsOrderByQueues) updateTopDepartmentShare(topDepartment *queue_info.QueueInfo) {
+	jobsOrder.activeDepartments.Fix(0)
+	jobsOrder.departmentIdToDepartmentMetadata[topDepartment.UID].shouldUpdateQueueShare = false
 }
 
 // addJobToQueue adds `job` to the jobs queue, creating that job's queue in the jobs order if needed
