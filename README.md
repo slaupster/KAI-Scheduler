@@ -22,6 +22,9 @@ It can run alongside other schedulers installed on the cluster.
 * [GPU Sharing](docs/gpu-sharing/README.md): Allow multiple workloads to efficiently share single or multiple GPUs, maximizing resource utilization.
 * Cloud & On-premise Support: Fully compatible with dynamic cloud infrastructures (including auto-scalers like Karpenter) as well as static on-premise deployments.
 
+
+
+
 ## Prerequisites
 Before installing KAI Scheduler, ensure you have:
 
