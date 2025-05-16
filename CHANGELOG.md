@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Queue order function now takes into account potential victims, resulting in better reclaim scenarios.
 
 ### CHANGED
-- Cached GetDeservedShare and GetFairShare function in the scheduler PodGroupInfo to improve performance
-- Added cache to the binder resource reservation client
-- More Caching and improvements to PodGroupInfo class
+- Cached GetDeservedShare and GetFairShare function in the scheduler PodGroupInfo to improve performance.
+- Added cache to the binder resource reservation client.
+- More Caching and improvements to PodGroupInfo class.
+- Update pod labels after scheduling decision concurrently in the background.
