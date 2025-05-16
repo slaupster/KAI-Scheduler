@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v0.4.8]
+
 ### Fixed
 - Queue order function now takes into account potential victims, resulting in better reclaim scenarios.
 
@@ -14,3 +16,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added cache to the binder resource reservation client.
 - More Caching and improvements to PodGroupInfo class.
 - Update pod labels after scheduling decision concurrently in the background.
+
+## [v0.4.7]
