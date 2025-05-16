@@ -8,3 +8,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - Queue order function now takes into account potential victims, resulting in better reclaim scenarios.
+
+### CHANGED
+- Cached GetDeservedShare and GetFairShare function in the scheduler PodGroupInfo to improve performance
