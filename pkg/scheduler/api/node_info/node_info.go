@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"go.uber.org/multierr"
+	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -149,8 +150,10 @@ func (ni *NodeInfo) IsTaskAllocatableOnReleasingOrIdle(task *pod_info.PodInfo) b
 	nodeNonAllocatedResources := ni.NonAllocatedResources()
 
 	if allocatable := ni.isTaskAllocatableOnNonAllocatedResources(task, nodeNonAllocatedResources); !allocatable {
-		log.InfraLogger.V(7).Infof("Task GPU %s/%s is not allocatable on node %s",
-			task.Namespace, task.Name, ni.Name)
+		log.InfraLogger.VLazy(7, func(logger *zap.SugaredLogger) {
+			logger.Infof("Task %s/%s is not allocatable on node %s",
+				task.Namespace, task.Name, ni.Name)
+		})
 		return false
 	}
 

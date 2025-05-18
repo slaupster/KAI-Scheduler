@@ -10,6 +10,7 @@ import (
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/framework"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/log"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/plugins/scores"
+	"go.uber.org/zap"
 )
 
 type nominatedNodeNamePlugin struct {
@@ -35,9 +36,11 @@ func (nnp *nominatedNodeNamePlugin) nodeOrderFn() api.NodeOrderFn {
 			score = scores.NominatedNode
 		}
 
-		log.InfraLogger.V(7).Infof(
-			"Estimating Task: <%v/%v> Job: <%v> for node: <%s>. Pod nomindated node name: <%s>. Score: %f",
-			task.Namespace, task.Name, task.Job, node.Name, task.Pod.Status.NominatedNodeName, score)
+		log.InfraLogger.VLazy(7, func(logger *zap.SugaredLogger) {
+			logger.Infof(
+				"Estimating Task: <%v/%v> Job: <%v> for node: <%s>. Pod nomindated node name: <%s>. Score: %f",
+				task.Namespace, task.Name, task.Job, node.Name, task.Pod.Status.NominatedNodeName, score)
+		})
 		return score, nil
 	}
 }

@@ -6,6 +6,7 @@ package nodeplacement
 import (
 	"math"
 
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api"
@@ -25,9 +26,11 @@ func (pp *nodePlacementPlugin) nodeResourcePack(resourceName v1.ResourceName) ap
 		nodeOverall := node.Allocatable.Get(resourceName)
 		score := getScoreOfCurrentNode(podAllocationRange.minAllocatable, podAllocationRange.maxAllocatable,
 			currentNodeNonAllocated, nodeOverall)
-		log.InfraLogger.V(7).Infof("Estimating Task: <%v/%v> Job: <%v> for node: <%s> "+
-			"that has <%f> non allocated %v. Score: %f",
-			task.Namespace, task.Name, task.Job, node.Name, currentNodeNonAllocated, resourceName, score)
+		log.InfraLogger.VLazy(7, func(logger *zap.SugaredLogger) {
+			logger.Infof("Estimating Task: <%v/%v> Job: <%v> for node: <%s> "+
+				"that has <%f> non allocated %v. Score: %f",
+				task.Namespace, task.Name, task.Job, node.Name, currentNodeNonAllocated, resourceName, score)
+		})
 		return score, nil
 	}
 }

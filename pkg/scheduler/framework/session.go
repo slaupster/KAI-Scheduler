@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api"
@@ -229,8 +230,10 @@ func (ssn *Session) OrderedNodesByTask(nodes []*node_info.NodeInfo, task *pod_in
 			nodeScores[score] = append(nodeScores[score], node)
 			mutex.Unlock()
 
-			log.InfraLogger.V(5).Infof("Overall priority node score of node <%v> for task <%v/%v> is: %f",
-				node.Name, task.Namespace, task.Name, score)
+			log.InfraLogger.VLazy(5, func(logger *zap.SugaredLogger) {
+				logger.Infof("Overall priority node score of node <%v> for task <%v/%v> is: %f",
+					node.Name, task.Namespace, task.Name, score)
+			})
 		}(node)
 	}
 
@@ -245,9 +248,11 @@ func (ssn *Session) isTaskAllocatableOnNode(task *pod_info.PodInfo, job *podgrou
 
 	if !node.IsTaskAllocatableOnReleasingOrIdle(task) {
 		allocatable = false
-		log.InfraLogger.V(6).Infof("Not enough resources for task: <%s/%s>, init requested: <%v>. "+
-			"Node <%s> with limited resources, releasing: <%v>, idle: <%v>",
-			task.Namespace, task.Name, task.ResReq, node.Name, node.Releasing, node.Idle)
+		log.InfraLogger.VLazy(6, func(logger *zap.SugaredLogger) {
+			logger.Infof("Not enough resources for task: <%s/%s>, init requested: <%v>. "+
+				"Node <%s> with limited resources, releasing: <%v>, idle: <%v>",
+				task.Namespace, task.Name, task.ResReq, node.Name, node.Releasing, node.Idle)
+		})
 		if writeFittingDelta {
 			if taskAllocatable := node.IsTaskAllocatable(task); !taskAllocatable {
 				fitError = node.FittingError(task, len(job.PodInfos) > 1)
