@@ -20,7 +20,7 @@ const (
 	defaultStalenessGracePeriod        = 60 * time.Second
 	defaultListenAddress               = ":8080"
 	defaultProfilerApiPort             = "8182"
-	defaultVerbosityLevel              = 3
+	defaultVerbosityLevel              = 5
 	defaultMaxConsolidationPreemptees  = 16
 	defaultDetailedFitError            = false
 	DefaultPyroscopeMutexProfilerRate  = 5
