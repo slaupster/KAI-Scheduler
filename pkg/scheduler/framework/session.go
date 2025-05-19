@@ -6,7 +6,6 @@ package framework
 import (
 	"fmt"
 	"net/http"
-	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -217,7 +216,7 @@ func (ssn *Session) OrderedNodesByTask(nodes []*node_info.NodeInfo, task *pod_in
 	ssn.NodePreOrderFn(task, nodes)
 
 	nodeChan := make(chan *node_info.NodeInfo, len(nodes))
-	numWorkers := min(runtime.NumCPU()*2, len(nodes)/2)
+	numWorkers := 10
 
 	for range numWorkers {
 		wg.Add(1)
