@@ -6,6 +6,7 @@ package framework
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -216,7 +217,9 @@ func (ssn *Session) OrderedNodesByTask(nodes []*node_info.NodeInfo, task *pod_in
 	ssn.NodePreOrderFn(task, nodes)
 
 	nodeChan := make(chan *node_info.NodeInfo, len(nodes))
-	numWorkers := 10
+	numWorkers := 20
+
+	log.InfraLogger.V(3).Infof("num of cpus: %d", runtime.NumCPU())
 
 	for range numWorkers {
 		wg.Add(1)
