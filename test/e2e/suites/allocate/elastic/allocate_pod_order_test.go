@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/NVIDIA/KAI-scheduler/pkg/apis/scheduling/v2"
+	taskorderconsts "github.com/NVIDIA/KAI-scheduler/pkg/scheduler/plugins/taskorder/constants"
 	testcontext "github.com/NVIDIA/KAI-scheduler/test/e2e/modules/context"
 	"github.com/NVIDIA/KAI-scheduler/test/e2e/modules/resources/capacity"
 	"github.com/NVIDIA/KAI-scheduler/test/e2e/modules/resources/rd"
@@ -24,7 +25,7 @@ import (
 )
 
 const (
-	taskOrderLabelKey = "kai.scheduler/task-priority"
+	taskOrderLabelKey = taskorderconsts.DefaultTaskOrderLabelKey
 )
 
 var _ = Describe("Elastic allocation pods order tests", Ordered, func() {

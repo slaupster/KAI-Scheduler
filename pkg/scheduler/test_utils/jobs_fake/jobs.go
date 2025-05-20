@@ -22,7 +22,7 @@ import (
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api/pod_status"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api/podgroup_info"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api/resource_info"
-	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/constants/labels"
+	taskorderconst "github.com/NVIDIA/KAI-scheduler/pkg/scheduler/plugins/taskorder/constants"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/test_utils/resources_fake"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/test_utils/tasks_fake"
 )
@@ -260,7 +260,7 @@ func createPodOfTask(job *TestJobBasic, taskIndex int,
 		gpuGroups, job.Name, task.RequiredMigInstances, task.ResourceClaimNames, task.ResourceClaimTemplates)
 
 	if task.Priority != nil {
-		podOfTask.Labels[labels.TaskOrderLabelKey] = strconv.Itoa(int(*task.Priority))
+		podOfTask.Labels[taskorderconst.DefaultTaskOrderLabelKey] = strconv.Itoa(int(*task.Priority))
 	}
 
 	if task.RequiredGPUs != nil {

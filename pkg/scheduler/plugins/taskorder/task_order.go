@@ -7,17 +7,30 @@ import (
 	"strconv"
 
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api/pod_info"
-	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/constants/labels"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/framework"
+	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/plugins/taskorder/constants"
 )
 
 type taskOrderPlugin struct {
 	// Arguments given for the plugin
 	pluginArguments map[string]string
+
+	// The label key to use for task ordering
+	taskOrderLabelKey string
 }
 
 func New(arguments map[string]string) framework.Plugin {
-	return &taskOrderPlugin{pluginArguments: arguments}
+	plugin := &taskOrderPlugin{
+		pluginArguments:   arguments,
+		taskOrderLabelKey: constants.DefaultTaskOrderLabelKey,
+	}
+
+	// Override with argument if provided
+	if labelKey, exists := arguments[constants.TaskOrderLabelKeyArg]; exists && labelKey != "" {
+		plugin.taskOrderLabelKey = labelKey
+	}
+
+	return plugin
 }
 
 func (pp *taskOrderPlugin) Name() string {
@@ -25,15 +38,17 @@ func (pp *taskOrderPlugin) Name() string {
 }
 
 func (pp *taskOrderPlugin) OnSessionOpen(ssn *framework.Session) {
-	ssn.AddTaskOrderFn(TaskOrderFn)
+	ssn.AddTaskOrderFn(func(l, r interface{}) int {
+		return pp.taskOrderFn(l, r)
+	})
 }
 
-func TaskOrderFn(l, r interface{}) int {
+func (pp *taskOrderPlugin) taskOrderFn(l, r interface{}) int {
 	lv := l.(*pod_info.PodInfo)
 	rv := r.(*pod_info.PodInfo)
 
-	lPodPriorityString, lLabelExists := lv.Pod.Labels[labels.TaskOrderLabelKey]
-	rPodPriorityString, rLabelExists := rv.Pod.Labels[labels.TaskOrderLabelKey]
+	lPodPriorityString, lLabelExists := lv.Pod.Labels[pp.taskOrderLabelKey]
+	rPodPriorityString, rLabelExists := rv.Pod.Labels[pp.taskOrderLabelKey]
 
 	if lLabelExists && !rLabelExists {
 		return -1

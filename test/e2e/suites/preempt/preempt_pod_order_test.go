@@ -18,6 +18,7 @@ import (
 
 	v2 "github.com/NVIDIA/KAI-scheduler/pkg/apis/scheduling/v2"
 	"github.com/NVIDIA/KAI-scheduler/pkg/common/constants"
+	taskorderconsts "github.com/NVIDIA/KAI-scheduler/pkg/scheduler/plugins/taskorder/constants"
 	testcontext "github.com/NVIDIA/KAI-scheduler/test/e2e/modules/context"
 	"github.com/NVIDIA/KAI-scheduler/test/e2e/modules/resources/capacity"
 	"github.com/NVIDIA/KAI-scheduler/test/e2e/modules/resources/rd"
@@ -28,7 +29,7 @@ import (
 )
 
 const (
-	taskOrderLabelKey = "kai.scheduler/task-priority"
+	taskOrderLabelKey = taskorderconsts.DefaultTaskOrderLabelKey
 )
 
 var _ = Describe("Priority pod order preemption with Elastic Jobs", Ordered, func() {
