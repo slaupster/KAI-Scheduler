@@ -59,11 +59,26 @@ func NewPodAccumulatedScenarioBuilder(
 	}
 }
 
-func (asb *PodAccumulatedScenarioBuilder) GetCurrentScenario() *solverscenario.ByNodeScenario {
+func (asb *PodAccumulatedScenarioBuilder) GetValidScenario() *solverscenario.ByNodeScenario {
+	for _, filter := range asb.scenarioFilters {
+		validScenario, err := filter.Filter(asb.lastScenario)
+		if err != nil {
+			log.InfraLogger.Errorf("Failed to run the filter %s with the error %v. scenario: %s", filter.Name(), err,
+				asb.lastScenario)
+			// Even if the filter fails, we can still use the scenario - we just might run more simulations the necessary
+			continue
+		}
+		if !validScenario {
+			log.InfraLogger.V(5).Infof(
+				"Filtered by %s for scenario: %s", filter.Name(), asb.lastScenario)
+			metrics.IncScenarioFilteredByAction()
+			return asb.GetNextValidScenario()
+		}
+	}
 	return asb.lastScenario
 }
 
-func (asb *PodAccumulatedScenarioBuilder) GetNextScenario() *solverscenario.ByNodeScenario {
+func (asb *PodAccumulatedScenarioBuilder) GetNextValidScenario() *solverscenario.ByNodeScenario {
 	if asb.victimsJobsQueue.IsEmpty() {
 		return nil
 	}
@@ -90,7 +105,7 @@ func (asb *PodAccumulatedScenarioBuilder) GetNextScenario() *solverscenario.ByNo
 				jobToPush := nextVictimJob.CloneWithTasks(remainingTasks)
 				asb.victimsJobsQueue.PushJob(jobToPush)
 			}
-			return asb.GetNextScenario()
+			return asb.GetNextValidScenario()
 		}
 	}
 
@@ -122,7 +137,7 @@ func (asb *PodAccumulatedScenarioBuilder) GetNextScenario() *solverscenario.ByNo
 			log.InfraLogger.V(5).Infof(
 				"Filtered by %s for scenario: %s", filter.Name(), asb.lastScenario)
 			metrics.IncScenarioFilteredByAction()
-			return asb.GetNextScenario()
+			return asb.GetNextValidScenario()
 		}
 	}
 
