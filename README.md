@@ -1,4 +1,4 @@
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg) ![Coverage](https://img.shields.io/badge/coverage-56.1%25-yellow)](LICENSE)
 # KAI Scheduler
 KAI Scheduler is a robust, efficient, and scalable [Kubernetes scheduler](https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/) that optimizes GPU resource allocation for AI and machine learning workloads.
 
