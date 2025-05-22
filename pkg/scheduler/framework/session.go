@@ -220,7 +220,7 @@ func (ssn *Session) OrderedNodesByTask(nodes []*node_info.NodeInfo, task *pod_in
 	for _, node := range nodes {
 		nodeChan <- node
 	}
-	numWorkers := 20
+	numWorkers := runtime.NumCPU()
 
 	log.InfraLogger.V(3).Infof("num of cpus: %d", runtime.NumCPU())
 
