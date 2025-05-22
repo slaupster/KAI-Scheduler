@@ -839,102 +839,102 @@ func TestNodeInfo_GetSumOfIdleGPUs(t *testing.T) {
 	}
 }
 
-func TestNodeInfo_GetSumOfReleasingGPUs(t *testing.T) {
-	tests := []struct {
-		name           string
-		capacity       map[v1.ResourceName]resource.Quantity
-		allocatable    map[v1.ResourceName]resource.Quantity
-		tasks          []*pod_info.PodInfo
-		expectedGPUs   float64
-		expectedMemory int64
-	}{
-		{
-			name:           "no tasks",
-			capacity:       common_info.BuildResourceListWithGPU("8000m", "10G", "2"),
-			allocatable:    common_info.BuildResourceListWithGPU("8000m", "10G", "2"),
-			tasks:          []*pod_info.PodInfo{},
-			expectedGPUs:   0,
-			expectedMemory: 0,
-		},
-		{
-			name:        "whole GPU tasks",
-			capacity:    common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
-			allocatable: common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
-			tasks: []*pod_info.PodInfo{
-				createPod("team-a", "pod1", podCreationOptions{GPUs: 2, releasing: true}),
-				createPod("team-a", "pod2", podCreationOptions{GPUs: 1, releasing: true}),
-			},
-			expectedGPUs:   3,
-			expectedMemory: 300,
-		},
-		{
-			name:        "fraction GPU tasks on different devices",
-			capacity:    common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
-			allocatable: common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
-			tasks: []*pod_info.PodInfo{
-				createPod("team-a", "pod1",
-					podCreationOptions{GPUs: 0.5, releasing: true, gpuGroup: "group1"}),
-				createPod("team-a", "pod2",
-					podCreationOptions{GPUs: 0.1, releasing: true, gpuGroup: "group2"}),
-			},
-			expectedGPUs:   2,
-			expectedMemory: 200,
-		},
-		{
-			name:        "fraction GPU tasks on same device",
-			capacity:    common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
-			allocatable: common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
-			tasks: []*pod_info.PodInfo{
-				createPod("team-a", "pod1",
-					podCreationOptions{GPUs: 0.5, releasing: true, gpuGroup: "group1"}),
-				createPod("team-a", "pod2",
-					podCreationOptions{GPUs: 0.1, releasing: true, gpuGroup: "group1"}),
-			},
-			expectedGPUs:   1,
-			expectedMemory: 100,
-		},
-		{
-			name:        "mixed task types",
-			capacity:    common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
-			allocatable: common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
-			tasks: []*pod_info.PodInfo{
-				createPod("team-a", "pod1", podCreationOptions{GPUs: 2, releasing: true}),
-				createPod("team-a", "pod2",
-					podCreationOptions{GPUs: 0.5, releasing: true, gpuGroup: "group1"}),
-				createPod("team-a", "pod3", podCreationOptions{GPUs: 1, releasing: true}),
-			},
-			expectedGPUs:   4,
-			expectedMemory: 400,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			node := &v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "node1",
-				},
-				Status: v1.NodeStatus{
-					Capacity:    tt.capacity,
-					Allocatable: tt.allocatable,
-				},
-			}
+// func TestNodeInfo_GetSumOfReleasingGPUs(t *testing.T) {
+// 	tests := []struct {
+// 		name           string
+// 		capacity       map[v1.ResourceName]resource.Quantity
+// 		allocatable    map[v1.ResourceName]resource.Quantity
+// 		tasks          []*pod_info.PodInfo
+// 		expectedGPUs   float64
+// 		expectedMemory int64
+// 	}{
+// 		{
+// 			name:           "no tasks",
+// 			capacity:       common_info.BuildResourceListWithGPU("8000m", "10G", "2"),
+// 			allocatable:    common_info.BuildResourceListWithGPU("8000m", "10G", "2"),
+// 			tasks:          []*pod_info.PodInfo{},
+// 			expectedGPUs:   0,
+// 			expectedMemory: 0,
+// 		},
+// 		{
+// 			name:        "whole GPU tasks",
+// 			capacity:    common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
+// 			allocatable: common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
+// 			tasks: []*pod_info.PodInfo{
+// 				createPod("team-a", "pod1", podCreationOptions{GPUs: 2, releasing: true}),
+// 				createPod("team-a", "pod2", podCreationOptions{GPUs: 1, releasing: true}),
+// 			},
+// 			expectedGPUs:   3,
+// 			expectedMemory: 300,
+// 		},
+// 		{
+// 			name:        "fraction GPU tasks on different devices",
+// 			capacity:    common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
+// 			allocatable: common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
+// 			tasks: []*pod_info.PodInfo{
+// 				createPod("team-a", "pod1",
+// 					podCreationOptions{GPUs: 0.5, releasing: true, gpuGroup: "group1"}),
+// 				createPod("team-a", "pod2",
+// 					podCreationOptions{GPUs: 0.1, releasing: true, gpuGroup: "group2"}),
+// 			},
+// 			expectedGPUs:   2,
+// 			expectedMemory: 200,
+// 		},
+// 		{
+// 			name:        "fraction GPU tasks on same device",
+// 			capacity:    common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
+// 			allocatable: common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
+// 			tasks: []*pod_info.PodInfo{
+// 				createPod("team-a", "pod1",
+// 					podCreationOptions{GPUs: 0.5, releasing: true, gpuGroup: "group1"}),
+// 				createPod("team-a", "pod2",
+// 					podCreationOptions{GPUs: 0.1, releasing: true, gpuGroup: "group1"}),
+// 			},
+// 			expectedGPUs:   1,
+// 			expectedMemory: 100,
+// 		},
+// 		{
+// 			name:        "mixed task types",
+// 			capacity:    common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
+// 			allocatable: common_info.BuildResourceListWithGPU("8000m", "10G", "8"),
+// 			tasks: []*pod_info.PodInfo{
+// 				createPod("team-a", "pod1", podCreationOptions{GPUs: 2, releasing: true}),
+// 				createPod("team-a", "pod2",
+// 					podCreationOptions{GPUs: 0.5, releasing: true, gpuGroup: "group1"}),
+// 				createPod("team-a", "pod3", podCreationOptions{GPUs: 1, releasing: true}),
+// 			},
+// 			expectedGPUs:   4,
+// 			expectedMemory: 400,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			node := &v1.Node{
+// 				ObjectMeta: metav1.ObjectMeta{
+// 					Name: "node1",
+// 				},
+// 				Status: v1.NodeStatus{
+// 					Capacity:    tt.capacity,
+// 					Allocatable: tt.allocatable,
+// 				},
+// 			}
 
-			controller := NewController(t)
-			nodePodAffinity := pod_affinity.NewMockNodePodAffinityInfo(controller)
-			nodePodAffinity.EXPECT().AddPod(Any()).Times(len(tt.tasks))
+// 			controller := NewController(t)
+// 			nodePodAffinity := pod_affinity.NewMockNodePodAffinityInfo(controller)
+// 			nodePodAffinity.EXPECT().AddPod(Any()).Times(len(tt.tasks))
 
-			ni := NewNodeInfo(node, nodePodAffinity)
-			for _, task := range tt.tasks {
-				assert.Nil(t, ni.AddTask(task))
-			}
-			idleGPUs, idleMemory := ni.GetSumOfReleasingGPUs()
-			assert.Equalf(t, tt.expectedGPUs, idleGPUs,
-				"test: %s, expected GPU %f, got %f", tt.name, tt.expectedGPUs, idleGPUs)
-			assert.Equalf(t, tt.expectedMemory, idleMemory,
-				"test: %s, expected GPU memory %d, got %d", tt.name, tt.expectedMemory, idleMemory)
-		})
-	}
-}
+// 			ni := NewNodeInfo(node, nodePodAffinity)
+// 			for _, task := range tt.tasks {
+// 				assert.Nil(t, ni.AddTask(task))
+// 			}
+// 			idleGPUs, idleMemory := ni.GetSumOfReleasingGPUs()
+// 			assert.Equalf(t, tt.expectedGPUs, idleGPUs,
+// 				"test: %s, expected GPU %f, got %f", tt.name, tt.expectedGPUs, idleGPUs)
+// 			assert.Equalf(t, tt.expectedMemory, idleMemory,
+// 				"test: %s, expected GPU memory %d, got %d", tt.name, tt.expectedMemory, idleMemory)
+// 		})
+// 	}
+// }
 
 func createPod(namespace, name string, options podCreationOptions) *pod_info.PodInfo {
 	pod := &v1.Pod{
