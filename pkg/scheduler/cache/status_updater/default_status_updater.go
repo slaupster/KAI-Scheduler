@@ -137,6 +137,8 @@ func (su *defaultStatusUpdater) Bound(
 			"Scheduled", "Successfully assigned pod %v/%v to node %v at node-pool %v",
 			pod.Namespace, pod.Name, hostname, nodePoolName,
 		)
+		podStatusUpdateKey := su.keyForPayload(pod.Name, pod.Namespace, pod.UID) + "-Status"
+		su.inFlightPods.Delete(podStatusUpdateKey)
 	}
 
 	return bindError
