@@ -4,6 +4,7 @@
 package framework
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -67,6 +68,13 @@ type Session struct {
 	mux             *http.ServeMux
 
 	k8sPodState map[types.UID]k8s_internal.SessionState
+}
+
+type nodesScoreRequest struct {
+	task         *pod_info.PodInfo
+	nodesChannel chan *node_info.NodeInfo
+	mutex        sync.Mutex
+	wg           sync.WaitGroup
 }
 
 func (ssn *Session) Statement() *Statement {
@@ -210,49 +218,68 @@ func (ssn *Session) FittingNode(task *pod_info.PodInfo, node *node_info.NodeInfo
 func (ssn *Session) OrderedNodesByTask(nodes []*node_info.NodeInfo, task *pod_info.PodInfo) []*node_info.NodeInfo {
 	var (
 		nodeScores = make(map[float64][]*node_info.NodeInfo)
-		mutex      sync.Mutex
-		wg         sync.WaitGroup
 	)
 
 	ssn.NodePreOrderFn(task, nodes)
 
+	chanOfChans := make(chan nodesScoreRequest)
+	ctx, cancel := context.WithCancel(context.Background())
+
 	nodeChan := make(chan *node_info.NodeInfo, len(nodes))
+	request1 := nodesScoreRequest{
+		task:         task,
+		nodesChannel: nodeChan,
+		mutex:        sync.Mutex{},
+		wg:           sync.WaitGroup{},
+	}
+	request1.wg.Add(len(nodes))
+	chanOfChans <- request1
 	for _, node := range nodes {
 		nodeChan <- node
 	}
+
 	numWorkers := runtime.NumCPU()
 
 	log.InfraLogger.V(3).Infof("num of cpus: %d", runtime.NumCPU())
 
 	for range numWorkers {
-		wg.Add(1)
 		go func() {
-			defer wg.Done()
-			localNodeScores := make(map[float64][]*node_info.NodeInfo)
-			for node := range nodeChan {
-				score, err := ssn.NodeOrderFn(task, node)
-				if err != nil {
-					log.InfraLogger.Errorf("Error in Calculating Priority for the node:%v", err)
-					continue
+			select {
+			case <-ctx.Done():
+				return
+			case request := <-chanOfChans:
+				localNodeScores := make(map[float64][]*node_info.NodeInfo)
+				for node := range request.nodesChannel {
+					score, err := ssn.NodeOrderFn(request.task, node)
+					if err != nil {
+						log.InfraLogger.Errorf("Error in Calculating Priority for the node:%v", err)
+						continue
+					}
+
+					localNodeScores[score] = append(localNodeScores[score], node)
+
+					log.InfraLogger.V(5).Infof("Overall priority node score of node <%v> for task <%v/%v> is: %f",
+						node.Name, request.task.Namespace, request.task.Name, score)
 				}
 
-				localNodeScores[score] = append(localNodeScores[score], node)
-
-				log.InfraLogger.V(5).Infof("Overall priority node score of node <%v> for task <%v/%v> is: %f",
-					node.Name, task.Namespace, task.Name, score)
+				request.mutex.Lock()
+				for score, nodes := range localNodeScores {
+					nodeScores[score] = append(nodeScores[score], nodes...)
+				}
+				request.mutex.Unlock()
+				for _, nodes := range localNodeScores {
+					for range len(nodes) {
+						request.wg.Done()
+					}
+				}
 			}
-
-			mutex.Lock()
-			for score, nodes := range localNodeScores {
-				nodeScores[score] = append(nodeScores[score], nodes...)
-			}
-			mutex.Unlock()
 		}()
 	}
 
 	close(nodeChan)
+	request1.wg.Wait()
+	cancel()
 
-	wg.Wait()
 	return sortNodesByScore(nodeScores)
 }
 
