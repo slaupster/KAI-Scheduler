@@ -103,7 +103,9 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	addNodePoolLabel(metadata, &pod, r.configs.NodePoolLabelKey)
+	if len(r.configs.NodePoolLabelKey) > 0 {
+		addNodePoolLabel(metadata, &pod, r.configs.NodePoolLabelKey)
+	}
 
 	err = r.PodGroupHandler.ApplyToCluster(ctx, *metadata)
 	if err != nil {
@@ -128,7 +130,7 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager, configs Configs) erro
 	}
 
 	r.podGrouper = podgrouper.NewPodgrouper(mgr.GetClient(), clientWithoutCache, configs.SearchForLegacyPodGroups,
-		configs.KnativeGangSchedule, configs.SchedulingQueueLabelKey)
+		configs.KnativeGangSchedule, configs.SchedulingQueueLabelKey, configs.NodePoolLabelKey)
 	r.PodGroupHandler = podgroup.NewHandler(mgr.GetClient(), configs.NodePoolLabelKey, configs.SchedulingQueueLabelKey)
 	r.configs = configs
 	r.eventRecorder = mgr.GetEventRecorderFor(controllerName)
