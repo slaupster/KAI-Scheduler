@@ -149,12 +149,16 @@ func (su *defaultStatusUpdater) updatePodGroup(
 	ctx context.Context, _ updatePayloadKey, patchData []byte, subResources []string, updateStatus bool, object runtime.Object,
 ) {
 	podGroup := object.(*enginev2alpha2.PodGroup)
+	log.StatusUpdaterLogger.V(1).Info("Updating pod group %s/%s", podGroup.Namespace, podGroup.Name)
 
 	var err error
 	if updateStatus {
 		_, err = su.kubeaischedClient.SchedulingV2alpha2().PodGroups(podGroup.Namespace).UpdateStatus(
 			ctx, podGroup, metav1.UpdateOptions{},
 		)
+	}
+	if err != nil {
+		log.StatusUpdaterLogger.Errorf("Failed to update pod group status %s/%s: %v", podGroup.Namespace, podGroup.Name, err)
 	}
 	if len(patchData) > 0 {
 		_, err = su.kubeaischedClient.SchedulingV2alpha2().PodGroups(podGroup.Namespace).Patch(
