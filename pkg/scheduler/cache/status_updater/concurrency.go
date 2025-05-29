@@ -101,9 +101,11 @@ func (su *defaultStatusUpdater) keyForPodLabelsPayload(name, namespace string, u
 func (su *defaultStatusUpdater) processPayload(ctx context.Context, payload *updatePayload) {
 	updateData, found := su.loadInflighUpdate(payload)
 	if !found {
+		log.InfraLogger.V(1).Info("No inflight update found for %s", payload.key)
 		return
 	}
 
+	log.InfraLogger.V(1).Info("Updating %s %s", payload.objectType, payload.key)
 	switch payload.objectType {
 	case podType:
 		su.updatePod(ctx, payload.key, updateData.patchData, updateData.subResources, updateData.object)
@@ -149,7 +151,7 @@ func (su *defaultStatusUpdater) updatePodGroup(
 	ctx context.Context, _ updatePayloadKey, patchData []byte, subResources []string, updateStatus bool, object runtime.Object,
 ) {
 	podGroup := object.(*enginev2alpha2.PodGroup)
-	log.StatusUpdaterLogger.V(1).Info("Updating pod group %s/%s", podGroup.Namespace, podGroup.Name)
+	log.InfraLogger.V(1).Info("Updating pod group %s/%s", podGroup.Namespace, podGroup.Name)
 
 	var err error
 	if updateStatus {
@@ -158,7 +160,7 @@ func (su *defaultStatusUpdater) updatePodGroup(
 		)
 	}
 	if err != nil {
-		log.StatusUpdaterLogger.Errorf("Failed to update pod group status %s/%s: %v", podGroup.Namespace, podGroup.Name, err)
+		log.InfraLogger.Errorf("Failed to update pod group status %s/%s: %v", podGroup.Namespace, podGroup.Name, err)
 	}
 	if len(patchData) > 0 {
 		_, err = su.kubeaischedClient.SchedulingV2alpha2().PodGroups(podGroup.Namespace).Patch(
@@ -166,7 +168,7 @@ func (su *defaultStatusUpdater) updatePodGroup(
 		)
 	}
 	if err != nil {
-		log.StatusUpdaterLogger.Errorf("Failed to update pod group %s/%s: %v", podGroup.Namespace, podGroup.Name, err)
+		log.InfraLogger.Errorf("Failed to update pod group %s/%s: %v", podGroup.Namespace, podGroup.Name, err)
 	}
 }
 
