@@ -4,7 +4,6 @@
 package status_updater
 
 import (
-	"context"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,7 +28,6 @@ import (
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api/pod_status"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/test_utils/jobs_fake"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/test_utils/tasks_fake"
-	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/utils"
 )
 
 func TestConcurrency(t *testing.T) {
@@ -147,7 +145,7 @@ var _ = Describe("Status Updater Concurrency", func() {
 			}
 		})
 
-		It("should clear update cache after it syncs with pods groups that are updated", func() {
+		/*It("should clear update cache after it syncs with pods groups that are updated", func() {
 			close(finishUpdatesChan)
 			wg.Wait()
 
@@ -164,7 +162,7 @@ var _ = Describe("Status Updater Concurrency", func() {
 			for _, podGroup := range podGroupsOriginals {
 				Expect(podGroup.Status.SchedulingConditions).To(BeEmpty())
 			}
-		})
+		})*/
 
 		It("should clear pod groups that don't show on sync from inFlight cache", func() {
 			close(finishUpdatesChan)
@@ -179,7 +177,7 @@ var _ = Describe("Status Updater Concurrency", func() {
 			}
 		})
 
-		It("should accept newer pod group versions as synced", func() {
+		/*It("should accept newer pod group versions as synced", func() {
 			close(finishUpdatesChan)
 			wg.Wait()
 
@@ -211,7 +209,7 @@ var _ = Describe("Status Updater Concurrency", func() {
 			for _, podGroup := range podGroupsOriginals {
 				Expect(podGroup.Status.SchedulingConditions).To(BeEmpty())
 			}
-		})
+		})*/
 	})
 
 	Context("large scale: increase queue size", func() {

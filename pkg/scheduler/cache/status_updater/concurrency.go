@@ -35,10 +35,7 @@ func (su *defaultStatusUpdater) SyncPodGroupsWithPendingUpdates(podGroups []*eng
 			continue
 		}
 		podGroup := inflightUpdateAny.(*inflightUpdate).object.(*enginev2alpha2.PodGroup)
-		isPodGroupUpdated := su.syncPodGroup(podGroup, podGroups[i])
-		if isPodGroupUpdated {
-			su.inFlightPodGroups.Delete(key)
-		}
+		_ = su.syncPodGroup(podGroup, podGroups[i])
 	}
 
 	// Cleanup podGroups that don't comeup anymore
@@ -105,7 +102,7 @@ func (su *defaultStatusUpdater) processPayload(ctx context.Context, payload *upd
 		return
 	}
 
-	log.InfraLogger.V(1).Info("Updating %s %s", payload.objectType, payload.key)
+	//log.InfraLogger.V(1).Info("Updating %s %s", payload.objectType, payload.key)
 	switch payload.objectType {
 	case podType:
 		su.updatePod(ctx, payload.key, updateData.patchData, updateData.subResources, updateData.object)
@@ -151,7 +148,7 @@ func (su *defaultStatusUpdater) updatePodGroup(
 	ctx context.Context, _ updatePayloadKey, patchData []byte, subResources []string, updateStatus bool, object runtime.Object,
 ) {
 	podGroup := object.(*enginev2alpha2.PodGroup)
-	log.InfraLogger.V(1).Info("Updating pod group %s/%s", podGroup.Namespace, podGroup.Name)
+	//log.InfraLogger.V(1).Info("Updating pod group %s/%s", podGroup.Namespace, podGroup.Name)
 
 	var err error
 	if updateStatus {
