@@ -6,7 +6,7 @@ kind: Deployment
 metadata:
   name: binder
 spec:
-  replicas: 1
+  replicas: {{ .Values.binder.replicas }}
   strategy:
     type: Recreate
   selector:
