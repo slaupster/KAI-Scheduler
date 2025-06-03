@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixes
 - Fixed pod status scheduled race condition between the scheduler and the pod binding
-- Fixed binder `replicas` value not being honoured
+- Fixed helm chart's binder `replicas` value not being honoured
 
 
 ## [v0.5.1] - 2025-05-20
