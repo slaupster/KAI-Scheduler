@@ -27,7 +27,6 @@ podgrouper:
 
 binder:
   name: binder
-  replicas: 1
   image:
     name: binder
     pullPolicy: IfNotPresent
