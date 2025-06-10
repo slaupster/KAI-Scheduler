@@ -49,8 +49,12 @@ type Configs struct {
 	KnativeGangSchedule      bool
 	SchedulerName            string
 	SchedulingQueueLabelKey  string
+
+	DefaultPrioritiesConfigMapName      string
+	DefaultPrioritiesConfigMapNamespace string
 }
 
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=create;update;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch;update;get;list;watch
 // +kubebuilder:rbac:groups="scheduling.run.ai",resources=podgroups,verbs=create;update;patch;get;list;watch
@@ -129,7 +133,8 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager, configs Configs) erro
 	}
 
 	r.podGrouper = podgrouper.NewPodgrouper(mgr.GetClient(), clientWithoutCache, configs.SearchForLegacyPodGroups,
-		configs.KnativeGangSchedule, configs.SchedulingQueueLabelKey, configs.NodePoolLabelKey)
+		configs.KnativeGangSchedule, configs.SchedulingQueueLabelKey, configs.NodePoolLabelKey,
+		configs.DefaultPrioritiesConfigMapName, configs.DefaultPrioritiesConfigMapNamespace)
 	r.PodGroupHandler = podgroup.NewHandler(mgr.GetClient(), configs.NodePoolLabelKey, configs.SchedulingQueueLabelKey)
 	r.configs = configs
 	r.eventRecorder = mgr.GetEventRecorderFor(controllerName)

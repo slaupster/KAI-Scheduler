@@ -13,5 +13,7 @@ const (
 	TrainPriorityClass     = "train"
 	InferencePriorityClass = "inference"
 
+	DefaultPrioritiesConfigMapTypesKey = "types"
+
 	DefaultQueueName = "default-queue"
 )
