@@ -24,6 +24,7 @@ spec:
           imagePullPolicy: {{ .Values.scheduler.image.pullPolicy }}
           args:
             - "--scheduler-conf=/etc/config/config.yaml"
+            - "--namespace={{ .Release.Namespace }}"
             - "--resource-reservation-app-label={{ .Values.global.resourceReservation.appLabel }}"
           {{- if .Values.scheduler.additionalArgs }}
             {{- toYaml .Values.scheduler.additionalArgs | nindent 12 }}
