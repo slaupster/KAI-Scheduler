@@ -15,12 +15,16 @@ import (
 	"github.com/NVIDIA/KAI-scheduler/pkg/binder/common/gpusharingconfigmap"
 )
 
+const (
+	visibleDevicesBC = "RUNAI-VISIBLE-DEVICES" // Deprecated, this value was replaced with NVIDIA_VISIBLE_DEVICES
+)
+
 func AddVisibleDevicesEnvVars(container *v1.Container, sharedGpuConfigMapName string) {
 	AddEnvVarToContainer(container, v1.EnvVar{
 		Name: NvidiaVisibleDevices,
 		ValueFrom: &v1.EnvVarSource{
 			ConfigMapKeyRef: &v1.ConfigMapKeySelector{
-				Key: VisibleDevices,
+				Key: NvidiaVisibleDevices,
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: sharedGpuConfigMapName,
 				},
@@ -58,19 +62,18 @@ func SetNvidiaVisibleDevices(
 	var updateFunc func(data map[string]string) error
 	if nvidiaVisibleDevicesDefinedInSpec {
 		configMapName, err = gpusharingconfigmap.ExtractCapabilitiesConfigMapName(pod, containerRef)
-		updateFunc = func(data map[string]string) error {
-			data[VisibleDevices] = visibleDevicesValue
-			return nil
-		}
 	} else {
 		configMapName, err = gpusharingconfigmap.ExtractDirectEnvVarsConfigMapName(pod, containerRef)
-		updateFunc = func(data map[string]string) error {
-			data[NvidiaVisibleDevices] = visibleDevicesValue
-			return nil
-		}
 	}
 	if err != nil {
 		return err
+	}
+	updateFunc = func(data map[string]string) error {
+		if _, found := data[visibleDevicesBC]; found {
+			data[visibleDevicesBC] = visibleDevicesValue
+		}
+		data[NvidiaVisibleDevices] = visibleDevicesValue
+		return nil
 	}
 	err = UpdateConfigMapEnvironmentVariable(ctx, kubeClient, pod, configMapName, updateFunc)
 	if err != nil {
