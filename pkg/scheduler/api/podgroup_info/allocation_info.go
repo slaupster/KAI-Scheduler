@@ -9,7 +9,6 @@ import (
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api/common_info"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api/common_info/resources"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api/pod_info"
-	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api/pod_status"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/api/resource_info"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/log"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/scheduler_util"
@@ -67,18 +66,6 @@ func GetTasksToAllocateRequestedGPUs(
 	return tasksTotalRequestedGPUs, tasksTotalRequestedGpuMemory
 }
 
-func GetJobsToAllocateInitResource(
-	podGroupInfos []*PodGroupInfo, taskOrderFn common_info.LessFn, isRealAllocation bool,
-) *resource_info.Resource {
-	tasksTotalRequestedResource := resource_info.EmptyResource()
-	for _, podGroupInfo := range podGroupInfos {
-		pgInitResource := GetTasksToAllocateInitResource(podGroupInfo, taskOrderFn, isRealAllocation)
-		tasksTotalRequestedResource.Add(pgInitResource)
-	}
-
-	return tasksTotalRequestedResource
-}
-
 func GetTasksToAllocateInitResource(
 	podGroupInfo *PodGroupInfo, taskOrderFn common_info.LessFn, isRealAllocation bool,
 ) *resource_info.Resource {
@@ -113,7 +100,7 @@ func getTasksToAllocateQueue(
 }
 
 func getNumOfTasksToAllocate(podGroupInfo *PodGroupInfo, numOfTasksWaitingAllocation int) int {
-	allocatedTasks := int32(getNumOfAllocatedTasks(podGroupInfo))
+	allocatedTasks := int32(podGroupInfo.GetActiveAllocatedTasksCount())
 
 	var maxTasksToAllocate int32
 	if allocatedTasks >= podGroupInfo.MinAvailable {
@@ -123,14 +110,4 @@ func getNumOfTasksToAllocate(podGroupInfo *PodGroupInfo, numOfTasksWaitingAlloca
 	}
 
 	return int(math.Min(float64(maxTasksToAllocate), float64(numOfTasksWaitingAllocation)))
-}
-
-func getNumOfAllocatedTasks(podGroupInfo *PodGroupInfo) int {
-	allocatedTasks := 0
-	for _, task := range podGroupInfo.PodInfos {
-		if pod_status.IsActiveAllocatedStatus(task.Status) {
-			allocatedTasks += 1
-		}
-	}
-	return allocatedTasks
 }
