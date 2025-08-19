@@ -164,13 +164,7 @@ func (pgi *PodGroupInfo) SetDefaultMinAvailable(minAvailable int32) {
 	pgi.SubGroups[DefaultSubGroup].SetMinAvailable(minAvailable)
 }
 
-func (pgi *PodGroupInfo) IsPreemptibleJob(isInferencePreemptible bool) bool {
-	if isInferencePreemptible {
-		if pgi.Priority == constants.PriorityInferenceNumber {
-			return true
-		}
-	}
-
+func (pgi *PodGroupInfo) IsPreemptibleJob() bool {
 	return pgi.Priority < constants.PriorityBuildNumber
 }
 

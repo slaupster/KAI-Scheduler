@@ -2599,7 +2599,7 @@ func getTestsMetadata() []integration_tests_utils.TestTopologyMetadata {
 		},
 		{
 			TestTopologyBasic: test_utils.TestTopologyBasic{
-				Name: "inference basic reclaim",
+				Name: "Attempt to reclaim from an inference workload",
 				Jobs: []*jobs_fake.TestJobBasic{
 					{
 						Name:                "q0_job0",
@@ -2662,13 +2662,13 @@ func getTestsMetadata() []integration_tests_utils.TestTopologyMetadata {
 					"q0_job1": {
 						NodeName:             "node0",
 						GPUsRequired:         1,
-						Status:               pod_status.Releasing,
+						Status:               pod_status.Running,
 						DontValidateGPUGroup: true,
 					},
 					"q1_job0": {
-						NodeName:             "node0",
+						NodeName:             "",
 						GPUsRequired:         1,
-						Status:               pod_status.Pipelined,
+						Status:               pod_status.Pending,
 						DontValidateGPUGroup: true,
 					},
 				},
