@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"slices"
 
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/cache/usagedb/api"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/cache/usagedb/fake"
 	"github.com/NVIDIA/KAI-scheduler/pkg/scheduler/log"
 )
 
-type GetClientFn func(connectionString string) (api.Interface, error)
+type GetClientFn func(connectionString string, usageParams *api.UsageParams) (api.Interface, error)
 
 var defaultClientMap = map[string]GetClientFn{
 	"fake": fake.NewFakeClient,
@@ -45,7 +46,8 @@ func (cr *ClientResolver) GetClient(config *api.UsageDBConfig) (api.Interface, e
 
 	client, ok := cr.clientMap[config.ClientType]
 	if !ok {
-		return nil, fmt.Errorf("unknown client type: %s, supported types: %v", config.ClientType, maps.Keys(cr.clientMap))
+		supportedTypes := slices.Collect(maps.Keys(cr.clientMap))
+		return nil, fmt.Errorf("unknown client type: %s, supported types: %v", config.ClientType, supportedTypes)
 	}
 
 	log.InfraLogger.V(3).Infof("getting usage db client of type: %s, connection string: %s", config.ClientType, config.ConnectionString)
@@ -58,7 +60,7 @@ func (cr *ClientResolver) GetClient(config *api.UsageDBConfig) (api.Interface, e
 
 	log.InfraLogger.V(3).Infof("getting usage db client of type: %s, connection string: %s", config.ClientType, connectionString)
 
-	return client(connectionString)
+	return client(connectionString, config.GetUsageParams())
 }
 
 func resolveConnectionString(config *api.UsageDBConfig) (string, error) {
