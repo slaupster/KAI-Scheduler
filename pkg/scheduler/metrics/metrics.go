@@ -54,6 +54,7 @@ var (
 	queueCPUUsage               *prometheus.GaugeVec
 	queueMemoryUsage            *prometheus.GaugeVec
 	queueGPUUsage               *prometheus.GaugeVec
+	usageQueryLatency           *prometheus.HistogramVec
 )
 
 func init() {
@@ -175,21 +176,29 @@ func InitMetrics(namespace string) {
 	queueCPUUsage = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "queue_cpu_usage_cores",
-			Help:      "CPU usage of queue, as a gauge. Value is proportional to cpu*hours usage with time decay applied",
+			Name:      "queue_cpu_usage",
+			Help:      "CPU usage of queue, as a gauge. Units depend on UsageDB configuration",
 		}, []string{"queue_name"})
 	queueMemoryUsage = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "queue_memory_usage_gb",
-			Help:      "Memory usage of queue, as a gauge. Value is proportional to memory*hours usage with time decay applied",
+			Name:      "queue_memory_usage",
+			Help:      "Memory usage of queue, as a gauge. Units depend on UsageDB configuration",
 		}, []string{"queue_name"})
 	queueGPUUsage = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "queue_gpu_usage_devices",
-			Help:      "GPU usage of queue, as a gauge. Value is proportional to gpu*hours usage with time decay applied",
+			Name:      "queue_gpu_usage",
+			Help:      "GPU usage of queue, as a gauge. Units depend on UsageDB configuration",
 		}, []string{"queue_name"})
+
+	usageQueryLatency = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Name:      "usage_query_latency_milliseconds",
+			Help:      "Usage database query latency histogram in milliseconds",
+			Buckets:   prometheus.ExponentialBuckets(5, 2, 10),
+		}, []string{})
 }
 
 // UpdateOpenSessionDuration updates latency for open session, including all plugins
@@ -275,6 +284,10 @@ func ResetQueueUsage() {
 	queueCPUUsage.Reset()
 	queueMemoryUsage.Reset()
 	queueGPUUsage.Reset()
+}
+
+func UpdateUsageQueryLatency(latency time.Duration) {
+	usageQueryLatency.WithLabelValues().Observe(float64(latency.Milliseconds()))
 }
 
 // RegisterPreemptionAttempts records number of attempts for preemption

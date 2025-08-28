@@ -37,54 +37,6 @@ type UsageParams struct {
 	WindowSize *time.Duration `yaml:"windowSize" json:"windowSize"`
 	// Window type for time-series aggregation. If not set, defaults to sliding.
 	WindowType *WindowType `yaml:"windowType" json:"windowType"`
-}
-
-func (up *UsageParams) SetDefaults() {
-	if up.HalfLifePeriod == nil {
-		// noop: disabled by default
-	}
-	if up.WindowSize == nil {
-		windowSize := time.Hour * 24 * 7
-		up.WindowSize = &windowSize
-	}
-	if up.WindowType == nil {
-		windowType := SlidingWindow
-		up.WindowType = &windowType
-	}
-}
-
-// WindowType defines the type of time window for aggregating usage data
-type WindowType string
-
-const (
-	// TumblingWindow represents non-overlapping, fixed-size time windows
-	// Example: 1-hour windows at 0-1h, 1-2h, 2-3h
-	TumblingWindow WindowType = "tumbling"
-
-	// SlidingWindow represents overlapping time windows that slide forward
-	// Example: a 1-hour sliding window will consider the usage of the last 1 hour prior to the current time.
-	SlidingWindow WindowType = "sliding"
-)
-
-// IsValid returns true if the WindowType is a valid value
-func (wt WindowType) IsValid() bool {
-	switch wt {
-	case TumblingWindow, SlidingWindow:
-		return true
-	default:
-		return false
-	}
-}
-
-// GetDefaultWindowType returns the default window type (sliding)
-func GetDefaultWindowType() WindowType {
-	return SlidingWindow
-}
-
-// GetWindowTypeOrDefault returns the window type if set, otherwise returns the default (sliding)
-func (up *UsageParams) GetWindowTypeOrDefault() WindowType {
-	if up.WindowType == nil {
-		return GetDefaultWindowType()
-	}
-	return *up.WindowType
+	// ExtraParams are extra parameters for the usage db client, which are client specific.
+	ExtraParams map[string]string `yaml:"extraParams" json:"extraParams"`
 }
