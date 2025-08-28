@@ -111,7 +111,7 @@ func NewPodGroupInfo(uid common_info.PodGroupID, tasks ...*pod_info.PodInfo) *Po
 		},
 
 		SubGroups: map[string]*SubGroupInfo{
-			DefaultSubGroup: NewSubGroupInfo(DefaultSubGroup, 0),
+			DefaultSubGroup: NewSubGroupInfo(DefaultSubGroup, 1),
 		},
 
 		LastStartTimestamp:   nil,
@@ -135,22 +135,16 @@ func (pgi *PodGroupInfo) GetAllPodsMap() pod_info.PodsMap {
 	return allPods
 }
 
-func (pgi *PodGroupInfo) GetActiveSubGroupInfos() map[string]*SubGroupInfo {
-	newSubGroups := make(map[string]*SubGroupInfo)
-	for name, subGroup := range pgi.SubGroups {
-		if name == DefaultSubGroup {
-			continue
-		}
-		newSubGroups[name] = subGroup
-	}
-	return newSubGroups
+func (pgi *PodGroupInfo) GetSubGroups() map[string]*SubGroupInfo {
+	return pgi.SubGroups
 }
 
 func (pgi *PodGroupInfo) GetDefaultMinAvailable() int32 {
-	if pgi.SubGroups == nil || len(pgi.SubGroups) == 0 || pgi.SubGroups[DefaultSubGroup] == nil {
-		return 0
+	minAvailable := int32(0)
+	for _, subGroup := range pgi.SubGroups {
+		minAvailable += subGroup.GetMinAvailable()
 	}
-	return pgi.SubGroups[DefaultSubGroup].GetMinAvailable()
+	return minAvailable
 }
 
 func (pgi *PodGroupInfo) SetDefaultMinAvailable(minAvailable int32) {
@@ -172,16 +166,11 @@ func (pgi *PodGroupInfo) SetPodGroup(pg *enginev2alpha2.PodGroup) {
 	pgi.Name = pg.Name
 	pgi.Namespace = pg.Namespace
 	pgi.NamespacedName = fmt.Sprintf("%s/%s", pgi.Namespace, pgi.Name)
-	pgi.SetDefaultMinAvailable(max(pg.Spec.MinMember, 1))
 	pgi.Queue = common_info.QueueID(pg.Spec.Queue)
 	pgi.CreationTimestamp = pg.GetCreationTimestamp()
 	pgi.PodGroup = pg
 	pgi.PodGroupUID = pg.UID
-
-	for _, sg := range pg.Spec.SubGroups {
-		subGroupInfo := FromSubGroup(&sg)
-		pgi.SubGroups[subGroupInfo.name] = subGroupInfo
-	}
+	pgi.setSubGroups(pg)
 
 	if pg.Annotations[commonconstants.StalePodgroupTimeStamp] != "" {
 		staleTimeStamp, err := time.Parse(time.RFC3339, pg.Annotations[commonconstants.StalePodgroupTimeStamp])
@@ -209,6 +198,26 @@ func (pgi *PodGroupInfo) SetPodGroup(pg *enginev2alpha2.PodGroup) {
 		pgi.Name, pgi.PodGroupUID)
 }
 
+func (pgi *PodGroupInfo) setSubGroups(podGroup *enginev2alpha2.PodGroup) {
+	if len(podGroup.Spec.SubGroups) > 0 {
+		pgi.SubGroups = map[string]*SubGroupInfo{}
+		for _, sg := range podGroup.Spec.SubGroups {
+			subGroupInfo := FromSubGroup(&sg)
+			pgi.SubGroups[subGroupInfo.name] = subGroupInfo
+		}
+		return
+	}
+	if pgi.SubGroups == nil {
+		pgi.SubGroups = map[string]*SubGroupInfo{}
+	}
+	defaultSubGroup, found := pgi.SubGroups[DefaultSubGroup]
+	if !found {
+		pgi.SubGroups[DefaultSubGroup] = NewSubGroupInfo(DefaultSubGroup, max(podGroup.Spec.MinMember, 1))
+	} else {
+		defaultSubGroup.SetMinAvailable(max(podGroup.Spec.MinMember, 1))
+	}
+}
+
 func (pgi *PodGroupInfo) addTaskIndex(ti *pod_info.PodInfo) {
 	if _, found := pgi.PodStatusIndex[ti.Status]; !found {
 		pgi.PodStatusIndex[ti.Status] = pod_info.PodsMap{}
@@ -223,12 +232,17 @@ func (pgi *PodGroupInfo) addTaskIndex(ti *pod_info.PodInfo) {
 }
 
 func (pgi *PodGroupInfo) AddTaskInfo(ti *pod_info.PodInfo) {
-	subGroup, found := pgi.SubGroups[ti.SubGroupName]
-	if found {
-		subGroup.AssignTask(ti)
+	taskSubGroupName := DefaultSubGroup
+	if ti.SubGroupName != "" {
+		taskSubGroupName = ti.SubGroupName
 	}
-	pgi.SubGroups[DefaultSubGroup].AssignTask(ti)
+	subGroup, found := pgi.SubGroups[taskSubGroupName]
+	if !found {
+		log.InfraLogger.Warningf("AddTaskInfo for task <%s/%s> of podGroup: <%s/%s>: SubGroup not found <%s>", ti.Namespace, ti.Name, pgi.Namespace, pgi.Name, taskSubGroupName)
+		return
+	}
 
+	subGroup.AssignTask(ti)
 	pgi.addTaskIndex(ti)
 
 	if pod_status.AllocatedStatus(ti.Status) {
@@ -380,11 +394,7 @@ func (pgi *PodGroupInfo) GetTasksActiveAllocatedReqResource() *resource_info.Res
 }
 
 func (pgi *PodGroupInfo) IsReadyForScheduling() bool {
-	validTasks := pgi.GetNumAliveTasks() - pgi.GetNumGatedTasks()
-	if int32(validTasks) < pgi.GetDefaultMinAvailable() {
-		return false
-	}
-	for _, subGroup := range pgi.GetActiveSubGroupInfos() {
+	for _, subGroup := range pgi.GetSubGroups() {
 		if !subGroup.IsReadyForScheduling() {
 			return false
 		}
@@ -401,15 +411,13 @@ func (pgi *PodGroupInfo) IsStale() bool {
 		return false
 	}
 
-	activeUsedTasks := int32(pgi.GetNumActiveUsedTasks())
-	if activeUsedTasks > 0 {
-		if activeUsedTasks < pgi.GetDefaultMinAvailable() {
+	totalActivePods := pgi.GetNumActiveUsedTasks()
+	if totalActivePods == 0 {
+		return false
+	}
+	for _, subGroup := range pgi.GetSubGroups() {
+		if !subGroup.IsGangSatisfied() {
 			return true
-		}
-		for _, subGroup := range pgi.GetActiveSubGroupInfos() {
-			if !subGroup.IsGangSatisfied() {
-				return true
-			}
 		}
 	}
 	return false
@@ -486,7 +494,7 @@ func (pgi *PodGroupInfo) CloneWithTasks(tasks []*pod_info.PodInfo) *PodGroupInfo
 func (pgi *PodGroupInfo) String() string {
 	res := ""
 
-	for _, subGroup := range pgi.GetActiveSubGroupInfos() {
+	for _, subGroup := range pgi.GetSubGroups() {
 		res = res + fmt.Sprintf("\t\t subGroup %s: minAvailable(%v)\n",
 			subGroup.name, subGroup.minAvailable)
 	}
