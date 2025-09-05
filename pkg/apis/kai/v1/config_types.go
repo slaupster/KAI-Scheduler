@@ -5,7 +5,9 @@ package v1
 
 import (
 	"github.com/NVIDIA/KAI-scheduler/pkg/apis/kai/v1/admission"
+	"github.com/NVIDIA/KAI-scheduler/pkg/apis/kai/v1/common"
 	"github.com/NVIDIA/KAI-scheduler/pkg/apis/kai/v1/pod_group_controller"
+	"github.com/NVIDIA/KAI-scheduler/pkg/apis/kai/v1/queue_controller"
 	"github.com/NVIDIA/KAI-scheduler/pkg/common/constants"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,6 +48,10 @@ type ConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	Admission *admission.Admission `json:"admission,omitempty"`
 
+	// QueueController specifies configuration for the queue controller
+	// +kubebuilder:validation:Optional
+	QueueController *queue_controller.QueueController `json:"queueController,omitempty"`
+
 	// PodGroupController specifies configuration for the pod-group-controller
 	// +kubebuilder:validation:Optional
 	PodGroupController *pod_group_controller.PodGroupController `json:"podGroupController,omitempty"`
@@ -55,19 +61,16 @@ func (c *ConfigSpec) SetDefaultsWhereNeeded() {
 	if len(c.Namespace) == 0 {
 		c.Namespace = constants.DefaultKAINamespace
 	}
-	if c.Global == nil {
-		c.Global = &GlobalConfig{}
-	}
+	c.Global = common.SetDefault(c.Global, &GlobalConfig{})
 	c.Global.SetDefaultWhereNeeded()
 
-	if c.PodGroupController == nil {
-		c.PodGroupController = &pod_group_controller.PodGroupController{}
-	}
+	c.QueueController = common.SetDefault(c.QueueController, &queue_controller.QueueController{})
+	c.QueueController.SetDefaultsWhereNeeded(c.Global.ReplicaCount)
+
+	c.PodGroupController = common.SetDefault(c.PodGroupController, &pod_group_controller.PodGroupController{})
 	c.PodGroupController.SetDefaultsWhereNeeded(c.Global.ReplicaCount)
 
-	if c.Admission == nil {
-		c.Admission = &admission.Admission{}
-	}
+	c.Admission = common.SetDefault(c.Admission, &admission.Admission{})
 	c.Admission.SetDefaultsWhereNeeded(c.Global.ReplicaCount)
 }
 
