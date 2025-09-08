@@ -13,6 +13,7 @@ import (
 	"github.com/NVIDIA/KAI-scheduler/pkg/apis/kai/v1/admission"
 	"github.com/NVIDIA/KAI-scheduler/pkg/apis/kai/v1/node_scale_adjuster"
 	"github.com/NVIDIA/KAI-scheduler/pkg/apis/kai/v1/pod_group_controller"
+	"github.com/NVIDIA/KAI-scheduler/pkg/apis/kai/v1/pod_grouper"
 	"github.com/NVIDIA/KAI-scheduler/pkg/apis/kai/v1/queue_controller"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,6 +85,11 @@ func (in *ConfigSpec) DeepCopyInto(out *ConfigSpec) {
 	if in.Global != nil {
 		in, out := &in.Global, &out.Global
 		*out = new(GlobalConfig)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.PodGrouper != nil {
+		in, out := &in.PodGrouper, &out.PodGrouper
+		*out = new(pod_grouper.PodGrouper)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Admission != nil {
