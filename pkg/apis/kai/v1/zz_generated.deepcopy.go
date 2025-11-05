@@ -202,6 +202,11 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = new(corev1.Affinity)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.RequireDefaultPodAntiAffinityTerm != nil {
+		in, out := &in.RequireDefaultPodAntiAffinityTerm, &out.RequireDefaultPodAntiAffinityTerm
+		*out = new(bool)
+		**out = **in
+	}
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext
 		*out = new(corev1.SecurityContext)
