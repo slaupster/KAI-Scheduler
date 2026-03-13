@@ -16,6 +16,10 @@ func QuantifyResourceRequirements(resource *resource_info.ResourceRequirements) 
 	return rs.NewResourceQuantities(resource.Cpu(), resource.Memory(), resource.GetGpusQuota())
 }
 
+func QuantifyVector(vec resource_info.ResourceVector, vectorMap *resource_info.ResourceVectorMap) rs.ResourceQuantities {
+	return rs.NewResourceQuantities(vec.Get(resource_info.CPUIndex), vec.Get(resource_info.MemoryIndex), vec.TotalGPUs(vectorMap))
+}
+
 func ResourceRequirementsFromQuantities(quantities rs.ResourceQuantities) *resource_info.ResourceRequirements {
 	return resource_info.NewResourceRequirements(
 		quantities[rs.GpuResource],
