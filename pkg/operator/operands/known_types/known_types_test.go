@@ -8,12 +8,12 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	vpav1 "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/apis/autoscaling.k8s.io/v1"
 
 	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 func TestKnownTypes(t *testing.T) {
@@ -118,6 +118,86 @@ var _ = Describe("VPAFieldInherit", func() {
 		Expect(desired.GetAnnotations()).To(HaveKeyWithValue("user-set", "keep"))
 		Expect(desired.GetAnnotations()).To(HaveKeyWithValue("server-added", "val"))
 		Expect(desired.Status.Recommendation).ToNot(BeNil())
+	})
+})
+
+var _ = Describe("MutatingWebhookConfigurationFieldInherit", func() {
+	It("should preserve cloud-provider-injected namespaceSelector matchExpressions", func() {
+		aksExpressions := []metav1.LabelSelectorRequirement{
+			{Key: "control-plane", Operator: metav1.LabelSelectorOpNotIn, Values: []string{"true"}},
+			{Key: "kubernetes.azure.com/managedby", Operator: metav1.LabelSelectorOpNotIn, Values: []string{"aks"}},
+		}
+		desiredExpression := metav1.LabelSelectorRequirement{
+			Key: "kai-injection", Operator: metav1.LabelSelectorOpIn, Values: []string{"enabled"},
+		}
+
+		current := &admissionv1.MutatingWebhookConfiguration{
+			Webhooks: []admissionv1.MutatingWebhook{
+				{
+					Name: "test-webhook",
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchExpressions: append([]metav1.LabelSelectorRequirement{desiredExpression}, aksExpressions...),
+					},
+				},
+			},
+		}
+		desired := &admissionv1.MutatingWebhookConfiguration{
+			Webhooks: []admissionv1.MutatingWebhook{
+				{
+					Name: "test-webhook",
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchExpressions: []metav1.LabelSelectorRequirement{desiredExpression},
+					},
+				},
+			},
+		}
+
+		MutatingWebhookConfigurationFieldInherit(current, desired)
+
+		exprs := desired.Webhooks[0].NamespaceSelector.MatchExpressions
+		Expect(exprs).To(ContainElement(desiredExpression))
+		Expect(exprs).To(ContainElement(aksExpressions[0]))
+		Expect(exprs).To(ContainElement(aksExpressions[1]))
+	})
+
+	It("should not duplicate namespaceSelector keys already present in desired", func() {
+		expr := metav1.LabelSelectorRequirement{
+			Key: "control-plane", Operator: metav1.LabelSelectorOpNotIn, Values: []string{"true"},
+		}
+		current := &admissionv1.MutatingWebhookConfiguration{
+			Webhooks: []admissionv1.MutatingWebhook{
+				{Name: "wh", NamespaceSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{expr}}},
+			},
+		}
+		desired := &admissionv1.MutatingWebhookConfiguration{
+			Webhooks: []admissionv1.MutatingWebhook{
+				{Name: "wh", NamespaceSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{expr}}},
+			},
+		}
+
+		MutatingWebhookConfigurationFieldInherit(current, desired)
+
+		Expect(desired.Webhooks[0].NamespaceSelector.MatchExpressions).To(HaveLen(1))
+	})
+
+	It("should inherit TimeoutSeconds and MatchPolicy from current when not set in desired", func() {
+		timeout := int32(10)
+		policy := admissionv1.Equivalent
+		current := &admissionv1.MutatingWebhookConfiguration{
+			Webhooks: []admissionv1.MutatingWebhook{
+				{Name: "wh", TimeoutSeconds: &timeout, MatchPolicy: &policy},
+			},
+		}
+		desired := &admissionv1.MutatingWebhookConfiguration{
+			Webhooks: []admissionv1.MutatingWebhook{
+				{Name: "wh"},
+			},
+		}
+
+		MutatingWebhookConfigurationFieldInherit(current, desired)
+
+		Expect(desired.Webhooks[0].TimeoutSeconds).To(Equal(&timeout))
+		Expect(desired.Webhooks[0].MatchPolicy).To(Equal(&policy))
 	})
 })
 
